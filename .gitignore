@@ -1,0 +1,77 @@
+# =============================================================================
+# Nanoboost API — Backend (FastAPI / Python)
+# =============================================================================
+
+# ─── Python ──────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# ─── Virtual environments ────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+
+# ─── Environment files (CRITICAL — never commit secrets) ─────────────────────
+.env
+.env.local
+.env.*.local
+.env.production
+.env.staging
+.env.development
+# .env.example — TRACKED (template fayl)
+
+# ─── Logs ────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ─── Testing ─────────────────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.cover
+.hypothesis/
+.tox/
+
+# ─── Linters & type checkers ─────────────────────────────────────────────────
+.ruff_cache/
+.mypy_cache/
+.dmypy.json
+.pyre/
+.pyright/
+.ty/
+
+# ─── Build artifacts ─────────────────────────────────────────────────────────
+build/
+dist/
+*.egg-info/
+*.egg
+
+# ─── Uploads (user-generated, Docker volume in production) ──────────────────
+uploads/
+
+# ─── Legacy migration data (one-off, contains business data) ─────────────────
+services-data.json
+
+# ─── Docker volumes (local dev only) ─────────────────────────────────────────
+postgres_data/
+
+# ─── IDE ─────────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ─── OS ──────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ─── Claude / AI assistants (local config, no commit) ────────────────────────
+.claude/
+.cursor/
