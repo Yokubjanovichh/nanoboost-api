@@ -1,0 +1,17 @@
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+# Canonical migration timing. preDeployCommand runs once per deploy in a
+# fresh container BEFORE the new instance takes traffic. Failure aborts
+# the deploy and leaves the previous revision serving.
+#
+# Railway docs (https://docs.railway.com/config-as-code/reference) define
+# preDeployCommand as `array of strings`. We wrap the chained shell in a
+# single sh -c so the && short-circuits correctly — `create_superuser`
+# only runs after `alembic upgrade head` succeeds. The seed itself is
+# idempotent (skips when the email already exists).
+[deploy]
+preDeployCommand = [
+    "sh -c 'alembic upgrade head && python -m app.scripts.create_superuser'",
+]

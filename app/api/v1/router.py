@@ -11,7 +11,6 @@ from app.features.reviews.router import public_router as reviews_public_router
 from app.features.reviews.router import router as reviews_router
 from app.features.services.router import public_router as services_public_router
 from app.features.services.router import router as services_router
-from app.features.uploads.router import router as uploads_router
 from app.features.users.router import router as users_router
 
 api_router = APIRouter(prefix="/api/v1")
@@ -23,7 +22,6 @@ api_router.include_router(clients_router)
 api_router.include_router(orders_router)
 api_router.include_router(reviews_router)
 api_router.include_router(dashboard_router)
-api_router.include_router(uploads_router)
 api_router.include_router(games_public_router)
 api_router.include_router(services_public_router)
 api_router.include_router(reviews_public_router)
