@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -18,6 +18,18 @@ class Settings(BaseSettings):
     DATABASE_URL: str = Field(
         default="postgresql+asyncpg://nanoboost:nanoboost@postgres:5432/nanoboost"
     )
+
+    # Railway/Heroku Postgres plugins inject sync-style URLs
+    # (postgresql://… or postgres://…). The app and Alembic env both use
+    # asyncpg, so rewrite the scheme up-front rather than expecting every
+    # provider to be reconfigured by hand.
+    @field_validator("DATABASE_URL")
+    @classmethod
+    def _ensure_async_driver(cls, value: str) -> str:
+        for sync_prefix in ("postgresql://", "postgres://"):
+            if value.startswith(sync_prefix):
+                return "postgresql+asyncpg://" + value[len(sync_prefix):]
+        return value
 
     JWT_SECRET_KEY: str = Field(min_length=32)
     JWT_ALGORITHM: str = "HS256"
