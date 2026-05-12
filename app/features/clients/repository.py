@@ -21,9 +21,7 @@ class ClientRepository:
         return result.scalar_one_or_none()
 
     async def get_by_email(self, email: str) -> Client | None:
-        result = await self.db.execute(
-            select(Client).where(Client.email == email.lower())
-        )
+        result = await self.db.execute(select(Client).where(Client.email == email.lower()))
         return result.scalar_one_or_none()
 
     async def list_paginated(
@@ -104,11 +102,7 @@ class ClientRepository:
             .limit(limit)
             .offset(offset)
         )
-        count_q = (
-            select(func.count())
-            .select_from(Order)
-            .where(Order.client_id == client_id)
-        )
+        count_q = select(func.count()).select_from(Order).where(Order.client_id == client_id)
         items = (await self.db.execute(items_q)).scalars().all()
         total = (await self.db.execute(count_q)).scalar_one()
         return list(items), total

@@ -9,7 +9,8 @@ SLUG_PATTERN = r"^[a-z0-9]+(-[a-z0-9]+)*$"
 class GameBase(BaseModel):
     name: str = Field(min_length=2, max_length=200)
     description: str | None = None
-    image_url: str | None = Field(default=None, max_length=500)
+    image_desktop_url: str | None = Field(default=None, max_length=500)
+    image_mobile_url: str | None = Field(default=None, max_length=500)
     sort_order: int = Field(default=0, ge=0)
     is_active: bool = True
 
@@ -22,7 +23,8 @@ class GameUpdate(BaseModel):
     slug: str | None = Field(default=None, min_length=2, max_length=100, pattern=SLUG_PATTERN)
     name: str | None = Field(default=None, min_length=2, max_length=200)
     description: str | None = None
-    image_url: str | None = Field(default=None, max_length=500)
+    image_desktop_url: str | None = Field(default=None, max_length=500)
+    image_mobile_url: str | None = Field(default=None, max_length=500)
     sort_order: int | None = Field(default=None, ge=0)
     is_active: bool | None = None
 
@@ -43,7 +45,8 @@ class PublicGameRead(BaseModel):
     slug: str
     name: str
     description: str | None
-    image_url: str | None
+    image_desktop_url: str | None
+    image_mobile_url: str | None
 
 
 class ReorderItem(BaseModel):

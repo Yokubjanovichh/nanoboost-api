@@ -48,15 +48,11 @@ async def list_reviews(
         search=search,
         sort=sort,
     )
-    return paginate(
-        [ReviewRead.model_validate(r) for r in items], total=total, params=page
-    )
+    return paginate([ReviewRead.model_validate(r) for r in items], total=total, params=page)
 
 
 @router.post("", response_model=ReviewRead, status_code=status.HTTP_201_CREATED)
-async def create_review(
-    payload: ReviewCreate, db: DbSession, _: ManagerAccess
-) -> ReviewRead:
+async def create_review(payload: ReviewCreate, db: DbSession, _: ManagerAccess) -> ReviewRead:
     review = await ReviewService(db).create(payload)
     return ReviewRead.model_validate(review)
 
@@ -70,9 +66,7 @@ async def reorder_reviews(
 
 
 @router.get("/{review_id}", response_model=ReviewRead)
-async def get_review(
-    review_id: UUID, db: DbSession, _: ReadAccess
-) -> ReviewRead:
+async def get_review(review_id: UUID, db: DbSession, _: ReadAccess) -> ReviewRead:
     review = await ReviewService(db).get(review_id)
     return ReviewRead.model_validate(review)
 
@@ -89,25 +83,19 @@ async def update_review(
 
 
 @router.patch("/{review_id}/toggle", response_model=ReviewRead)
-async def toggle_review_active(
-    review_id: UUID, db: DbSession, _: ManagerAccess
-) -> ReviewRead:
+async def toggle_review_active(review_id: UUID, db: DbSession, _: ManagerAccess) -> ReviewRead:
     review = await ReviewService(db).toggle_active(review_id)
     return ReviewRead.model_validate(review)
 
 
 @router.patch("/{review_id}/featured", response_model=ReviewRead)
-async def toggle_review_featured(
-    review_id: UUID, db: DbSession, _: ManagerAccess
-) -> ReviewRead:
+async def toggle_review_featured(review_id: UUID, db: DbSession, _: ManagerAccess) -> ReviewRead:
     review = await ReviewService(db).toggle_featured(review_id)
     return ReviewRead.model_validate(review)
 
 
 @router.delete("/{review_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_review(
-    review_id: UUID, db: DbSession, _: AdminAccess
-) -> None:
+async def delete_review(review_id: UUID, db: DbSession, _: AdminAccess) -> None:
     await ReviewService(db).soft_delete(review_id)
 
 
@@ -122,7 +110,5 @@ async def list_public_reviews(
     service_id: Annotated[UUID | None, Query()] = None,
     featured: Annotated[bool | None, Query()] = None,
 ) -> list[PublicReviewRead]:
-    reviews = await ReviewService(db).list_public(
-        service_id=service_id, featured=featured
-    )
+    reviews = await ReviewService(db).list_public(service_id=service_id, featured=featured)
     return [PublicReviewRead.model_validate(r) for r in reviews]

@@ -35,9 +35,7 @@ from app.shared.notifications import OrderNotifier, get_order_notifier
 
 def assert_transition(current: OrderStatus, target: OrderStatus) -> None:
     if current == target:
-        raise ValidationFailureError(
-            f"Order is already in '{current.value}' status"
-        )
+        raise ValidationFailureError(f"Order is already in '{current.value}' status")
     allowed = ORDER_STATUS_TRANSITIONS.get(current, frozenset())
     if target not in allowed:
         raise InvalidStatusTransitionError(current.value, target.value)
@@ -53,9 +51,7 @@ def _status_timestamp_field(status: OrderStatus) -> str | None:
 
 
 class OrderService:
-    def __init__(
-        self, db: AsyncSession, notifier: OrderNotifier | None = None
-    ) -> None:
+    def __init__(self, db: AsyncSession, notifier: OrderNotifier | None = None) -> None:
         self.db = db
         self.repo = OrderRepository(db)
         self.clients = ClientRepository(db)
@@ -162,7 +158,7 @@ class OrderService:
                 return {
                     "slug": service_obj.slug,
                     "title": service_obj.title,
-                    "image_url": service_obj.image_url,
+                    "image_url": service_obj.image_desktop_url,
                     "platform": service_obj.platform.value,
                     "game_slug": game_obj.slug if game_obj else None,
                 }
@@ -216,9 +212,7 @@ class OrderService:
 
         subtotal_usd = subtotal_usd.quantize(Decimal("0.01"))
         discount_pct = Decimal(payload.discount_percent)
-        discount_amount = (subtotal_usd * discount_pct / Decimal("100")).quantize(
-            Decimal("0.01")
-        )
+        discount_amount = (subtotal_usd * discount_pct / Decimal("100")).quantize(Decimal("0.01"))
         final_total = (subtotal_usd - discount_amount).quantize(Decimal("0.01"))
 
         order_number = await self.repo.reserve_next_order_number()

@@ -45,11 +45,7 @@ class ReviewRepository:
         sort: str | None = None,
     ) -> tuple[list[Review], int]:
         items_q = self._live().options(selectinload(Review.service))
-        count_q = (
-            select(func.count())
-            .select_from(Review)
-            .where(Review.is_deleted.is_(False))
-        )
+        count_q = select(func.count()).select_from(Review).where(Review.is_deleted.is_(False))
 
         if service_id is not None:
             items_q = items_q.where(Review.service_id == service_id)

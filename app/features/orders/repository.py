@@ -145,9 +145,7 @@ class OrderRepository:
         await self.db.flush()
         return order
 
-    async def stats(
-        self, *, currency: DisplayCurrency = DisplayCurrency.USD
-    ) -> dict:
+    async def stats(self, *, currency: DisplayCurrency = DisplayCurrency.USD) -> dict:
         del currency  # USD-only in V1; argument kept for forward compat
 
         # Total + revenue
@@ -174,9 +172,7 @@ class OrderRepository:
 
         # Breakdown by status
         breakdown_rows = (
-            await self.db.execute(
-                select(Order.status, func.count(Order.id)).group_by(Order.status)
-            )
+            await self.db.execute(select(Order.status, func.count(Order.id)).group_by(Order.status))
         ).all()
 
         return {
@@ -186,7 +182,6 @@ class OrderRepository:
             "revenue_today_usd": Decimal(str(revenue_today or 0)),
             "avg_order_value_usd": Decimal(str(avg_value or 0)).quantize(Decimal("0.01")),
             "by_status": [
-                {"status": status, "count": int(count or 0)}
-                for status, count in breakdown_rows
+                {"status": status, "count": int(count or 0)} for status, count in breakdown_rows
             ],
         }

@@ -5,6 +5,7 @@ Revises: 0005
 Create Date: 2026-05-08 00:01:00
 
 """
+
 from collections.abc import Sequence
 
 import sqlalchemy as sa
@@ -36,9 +37,7 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.text("false"),
         ),
-        sa.Column(
-            "sort_order", sa.Integer(), nullable=False, server_default="0"
-        ),
+        sa.Column("sort_order", sa.Integer(), nullable=False, server_default="0"),
         sa.Column(
             "is_active",
             sa.Boolean(),
@@ -63,9 +62,7 @@ def upgrade() -> None:
             server_default=sa.func.now(),
             nullable=False,
         ),
-        sa.CheckConstraint(
-            "rating >= 1 AND rating <= 5", name="ck_reviews_rating_range"
-        ),
+        sa.CheckConstraint("rating >= 1 AND rating <= 5", name="ck_reviews_rating_range"),
     )
     op.create_index(
         "ix_reviews_service_active",

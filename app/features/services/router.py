@@ -120,9 +120,7 @@ async def reorder_services(
 
 
 @router.get("/{service_id}", response_model=ServiceDetailRead)
-async def get_service(
-    service_id: UUID, db: DbSession, _: ReadAccess
-) -> ServiceDetailRead:
+async def get_service(service_id: UUID, db: DbSession, _: ReadAccess) -> ServiceDetailRead:
     service = await ServiceService(db).get(service_id)
     return _to_detail(service)
 
@@ -152,21 +150,15 @@ async def toggle_service_featured(
 
 
 @router.delete("/{service_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_service(
-    service_id: UUID, db: DbSession, _: AdminAccess
-) -> None:
+async def delete_service(service_id: UUID, db: DbSession, _: AdminAccess) -> None:
     await ServiceService(db).soft_delete(service_id)
 
 
 # --- Service Options nested endpoints ----------------------------------------
 
 
-@router.get(
-    "/{service_id}/options", response_model=list[ServiceOptionRead]
-)
-async def list_options(
-    service_id: UUID, db: DbSession, _: ReadAccess
-) -> list[ServiceOptionRead]:
+@router.get("/{service_id}/options", response_model=list[ServiceOptionRead])
+async def list_options(service_id: UUID, db: DbSession, _: ReadAccess) -> list[ServiceOptionRead]:
     options = await ServiceOptionService(db).list(service_id)
     return [ServiceOptionRead.model_validate(o) for o in options]
 
@@ -186,9 +178,7 @@ async def create_option(
     return ServiceOptionRead.model_validate(option)
 
 
-@router.post(
-    "/{service_id}/options/reorder", response_model=ReorderResponse
-)
+@router.post("/{service_id}/options/reorder", response_model=ReorderResponse)
 async def reorder_options(
     service_id: UUID,
     payload: ReorderRequest,
@@ -199,9 +189,7 @@ async def reorder_options(
     return ReorderResponse(updated=updated)
 
 
-@router.patch(
-    "/{service_id}/options/{option_id}", response_model=ServiceOptionRead
-)
+@router.patch("/{service_id}/options/{option_id}", response_model=ServiceOptionRead)
 async def update_option(
     service_id: UUID,
     option_id: UUID,
@@ -217,9 +205,7 @@ async def update_option(
     "/{service_id}/options/{option_id}",
     status_code=status.HTTP_204_NO_CONTENT,
 )
-async def delete_option(
-    service_id: UUID, option_id: UUID, db: DbSession, _: ManagerAccess
-) -> None:
+async def delete_option(service_id: UUID, option_id: UUID, db: DbSession, _: ManagerAccess) -> None:
     await ServiceOptionService(db).delete(service_id, option_id)
 
 
@@ -245,5 +231,3 @@ async def list_public_services(
 async def get_public_service(slug: str, db: DbSession) -> PublicServiceRead:
     service = await ServiceService(db).get_public(slug)
     return PublicServiceRead.model_validate(service)
-
-

@@ -14,9 +14,7 @@ from pydantic import (
 from app.core.constants import Platform
 
 SLUG_PATTERN = r"^[a-z0-9]+(-[a-z0-9]+)*$"
-PriceField = Annotated[
-    Decimal, Field(ge=0, max_digits=10, decimal_places=2)
-]
+PriceField = Annotated[Decimal, Field(ge=0, max_digits=10, decimal_places=2)]
 
 
 class WhatYouGetItem(BaseModel):
@@ -48,12 +46,8 @@ class ServiceOptionCreate(ServiceOptionBase):
 
 class ServiceOptionUpdate(BaseModel):
     label: str | None = Field(default=None, min_length=1, max_length=200)
-    price_usd: Decimal | None = Field(
-        default=None, ge=0, max_digits=10, decimal_places=2
-    )
-    price_eur: Decimal | None = Field(
-        default=None, ge=0, max_digits=10, decimal_places=2
-    )
+    price_usd: Decimal | None = Field(default=None, ge=0, max_digits=10, decimal_places=2)
+    price_eur: Decimal | None = Field(default=None, ge=0, max_digits=10, decimal_places=2)
     is_default: bool | None = None
     sort_order: int | None = Field(default=None, ge=0)
 
@@ -85,7 +79,8 @@ class PublicGameSummary(BaseModel):
 class ServiceBase(BaseModel):
     title: str = Field(min_length=2, max_length=300)
     platform: Platform
-    image_url: str | None = Field(default=None, max_length=500)
+    image_desktop_url: str | None = Field(default=None, max_length=500)
+    image_mobile_url: str | None = Field(default=None, max_length=500)
     image_alt: str | None = Field(default=None, max_length=300)
     description: list[str] = Field(default_factory=list)
     what_you_get: list[WhatYouGetItem] = Field(default_factory=list)
@@ -104,9 +99,7 @@ class ServiceCreate(ServiceBase):
 
     @field_validator("options")
     @classmethod
-    def _at_most_one_default(
-        cls, v: list[ServiceOptionCreate]
-    ) -> list[ServiceOptionCreate]:
+    def _at_most_one_default(cls, v: list[ServiceOptionCreate]) -> list[ServiceOptionCreate]:
         defaults = sum(1 for opt in v if opt.is_default)
         if defaults > 1:
             raise ValueError("Only one option can be marked as default")
@@ -114,12 +107,11 @@ class ServiceCreate(ServiceBase):
 
 
 class ServiceUpdate(BaseModel):
-    slug: str | None = Field(
-        default=None, min_length=2, max_length=150, pattern=SLUG_PATTERN
-    )
+    slug: str | None = Field(default=None, min_length=2, max_length=150, pattern=SLUG_PATTERN)
     title: str | None = Field(default=None, min_length=2, max_length=300)
     platform: Platform | None = None
-    image_url: str | None = Field(default=None, max_length=500)
+    image_desktop_url: str | None = Field(default=None, max_length=500)
+    image_mobile_url: str | None = Field(default=None, max_length=500)
     image_alt: str | None = Field(default=None, max_length=300)
     description: list[str] | None = None
     what_you_get: list[WhatYouGetItem] | None = None
@@ -175,7 +167,8 @@ class PublicServiceRead(BaseModel):
     slug: str
     title: str
     platform: Platform
-    image_url: str | None
+    image_desktop_url: str | None
+    image_mobile_url: str | None
     image_alt: str | None
     description: list[str]
     what_you_get: list[WhatYouGetItem]

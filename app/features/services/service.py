@@ -46,7 +46,8 @@ class ServiceService:
             slug=payload.slug,
             title=payload.title,
             platform=payload.platform,
-            image_url=payload.image_url,
+            image_desktop_url=payload.image_desktop_url,
+            image_mobile_url=payload.image_mobile_url,
             image_alt=payload.image_alt,
             description=list(payload.description),
             what_you_get=_what_you_get_to_dict(payload.what_you_get),
@@ -130,8 +131,10 @@ class ServiceService:
             service.title = payload.title
         if payload.platform is not None:
             service.platform = payload.platform
-        if payload.image_url is not None:
-            service.image_url = payload.image_url
+        if payload.image_desktop_url is not None:
+            service.image_desktop_url = payload.image_desktop_url
+        if payload.image_mobile_url is not None:
+            service.image_mobile_url = payload.image_mobile_url
         if payload.image_alt is not None:
             service.image_alt = payload.image_alt
         if payload.description is not None:
@@ -204,9 +207,7 @@ class ServiceOptionService:
         await self._ensure_service(service_id)
         return await self.repo.list_by_service(service_id)
 
-    async def create(
-        self, service_id: UUID, payload: ServiceOptionCreate
-    ) -> ServiceOption:
+    async def create(self, service_id: UUID, payload: ServiceOptionCreate) -> ServiceOption:
         await self._ensure_service(service_id)
 
         if payload.is_default:
@@ -257,9 +258,7 @@ class ServiceOptionService:
         await self.repo.delete(option)
         await self.db.commit()
 
-    async def reorder(
-        self, service_id: UUID, payload: ReorderRequest
-    ) -> int:
+    async def reorder(self, service_id: UUID, payload: ReorderRequest) -> int:
         await self._ensure_service(service_id)
         pairs = [(item.id, item.sort_order) for item in payload.items]
         updated = await self.repo.bulk_update_sort_order(service_id, pairs)

@@ -45,7 +45,8 @@ class Service(Base, TimestampMixin):
         ),
         nullable=False,
     )
-    image_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    image_desktop_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    image_mobile_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     image_alt: Mapped[str | None] = mapped_column(String(300), nullable=True)
 
     description: Mapped[list] = mapped_column(JsonList, nullable=False, default=list)

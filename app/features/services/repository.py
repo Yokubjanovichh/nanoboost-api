@@ -82,11 +82,7 @@ class ServiceRepository:
             .options(selectinload(Service.game))
             .where(Service.is_deleted.is_(False))
         )
-        count_q = (
-            select(func.count())
-            .select_from(Service)
-            .where(Service.is_deleted.is_(False))
-        )
+        count_q = select(func.count()).select_from(Service).where(Service.is_deleted.is_(False))
 
         if game_id is not None:
             items_q = items_q.where(Service.game_id == game_id)
@@ -113,9 +109,7 @@ class ServiceRepository:
 
         rows = (await self.db.execute(items_q)).all()
         total = (await self.db.execute(count_q)).scalar_one()
-        return [
-            (row[0], int(row[1] or 0), row[2], row[3]) for row in rows
-        ], total
+        return [(row[0], int(row[1] or 0), row[2], row[3]) for row in rows], total
 
     async def list_public(
         self,
@@ -165,9 +159,7 @@ class ServiceRepository:
         q = self._live().where(Service.id == service_id)
         return (await self.db.execute(q)).scalar_one_or_none()
 
-    async def get_by_slug(
-        self, slug: str, *, exclude_id: UUID | None = None
-    ) -> Service | None:
+    async def get_by_slug(self, slug: str, *, exclude_id: UUID | None = None) -> Service | None:
         q = self._live().where(Service.slug == slug)
         if exclude_id is not None:
             q = q.where(Service.id != exclude_id)
@@ -220,9 +212,7 @@ class ServiceOptionRepository:
         await self.db.delete(option)
         await self.db.flush()
 
-    async def unset_default(
-        self, service_id: UUID, *, exclude_id: UUID | None = None
-    ) -> int:
+    async def unset_default(self, service_id: UUID, *, exclude_id: UUID | None = None) -> int:
         stmt = (
             update(ServiceOption)
             .where(
@@ -236,9 +226,7 @@ class ServiceOptionRepository:
         result = await self.db.execute(stmt)
         return result.rowcount or 0
 
-    async def bulk_update_sort_order(
-        self, service_id: UUID, items: list[tuple[UUID, int]]
-    ) -> int:
+    async def bulk_update_sort_order(self, service_id: UUID, items: list[tuple[UUID, int]]) -> int:
         updated = 0
         for option_id, sort_order in items:
             stmt = (

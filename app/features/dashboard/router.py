@@ -60,7 +60,5 @@ async def get_recent_orders(
     limit: Annotated[int, Query(ge=1, le=50)] = 10,
 ) -> RecentOrdersResponse:
     orders = await DashboardService(db).recent_orders(limit=limit)
-    items = [
-        _to_order_read(o, items_count=0) for o in orders
-    ]
+    items = [_to_order_read(o, items_count=0) for o in orders]
     return RecentOrdersResponse(items=items)

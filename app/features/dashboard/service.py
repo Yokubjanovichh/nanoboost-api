@@ -29,15 +29,9 @@ class DashboardService:
         total_orders, total_revenue, avg_value = await self.repo.overview_totals(
             from_dt=from_dt, to_dt=to_dt
         )
-        new_clients = await self.repo.overview_new_clients(
-            from_dt=from_dt, to_dt=to_dt
-        )
-        by_status = await self.repo.overview_by_status(
-            from_dt=from_dt, to_dt=to_dt
-        )
-        by_payment_method = await self.repo.overview_by_payment_method(
-            from_dt=from_dt, to_dt=to_dt
-        )
+        new_clients = await self.repo.overview_new_clients(from_dt=from_dt, to_dt=to_dt)
+        by_status = await self.repo.overview_by_status(from_dt=from_dt, to_dt=to_dt)
+        by_payment_method = await self.repo.overview_by_payment_method(from_dt=from_dt, to_dt=to_dt)
 
         return DashboardOverview(
             period=period,
@@ -72,14 +66,10 @@ class DashboardService:
 
         return RevenueChartResponse(period=period, items=items)
 
-    async def top_services(
-        self, period: PeriodEnum, *, limit: int
-    ) -> TopServicesResponse:
+    async def top_services(self, period: PeriodEnum, *, limit: int) -> TopServicesResponse:
         now = datetime.now(UTC)
         from_dt, to_dt = date_range(period.value, now=now)
-        rows = await self.repo.top_services(
-            from_dt=from_dt, to_dt=to_dt, limit=limit
-        )
+        rows = await self.repo.top_services(from_dt=from_dt, to_dt=to_dt, limit=limit)
         items = [
             TopServiceItem(
                 service_id=row[0],
