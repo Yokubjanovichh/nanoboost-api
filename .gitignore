@@ -53,7 +53,8 @@ dist/
 *.egg
 
 # ─── Uploads (user-generated, Docker volume in production) ──────────────────
-uploads/
+# Leading slash = only root-level /uploads/, not app/features/uploads/
+/uploads/
 
 # ─── Legacy migration data (one-off, contains business data) ─────────────────
 services-data.json
