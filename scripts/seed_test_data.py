@@ -5,6 +5,7 @@ Postgres orders + clients alohida SQL skript orqali.
 
 Run: python scripts/seed_test_data.py
 """
+
 import json
 import sys
 import urllib.request
@@ -53,24 +54,61 @@ def main():
 
     print("\n[2/4] Test users yaratish...")
     users = [
-        {"email": "admin2@nanoboost.io",   "password": "Admin123!",   "role": "admin",   "full_name": "Test Admin"},
-        {"email": "manager@nanoboost.io",  "password": "Manager123!", "role": "manager", "full_name": "Test Manager"},
-        {"email": "viewer@nanoboost.io",   "password": "Viewer123!",  "role": "viewer",  "full_name": "Test Viewer"},
+        {
+            "email": "admin2@nanoboost.io",
+            "password": "Admin123!",
+            "role": "admin",
+            "full_name": "Test Admin",
+        },
+        {
+            "email": "manager@nanoboost.io",
+            "password": "Manager123!",
+            "role": "manager",
+            "full_name": "Test Manager",
+        },
+        {
+            "email": "viewer@nanoboost.io",
+            "password": "Viewer123!",
+            "role": "viewer",
+            "full_name": "Test Viewer",
+        },
     ]
     for u in users:
-        safe(f"user {u['email']:<30} ({u['role']})",
-             lambda u=u: request("POST", f"{API}/users", u, token))
+        safe(
+            f"user {u['email']:<30} ({u['role']})",
+            lambda u=u: request("POST", f"{API}/users", u, token),
+        )
 
     print("\n[3/4] Games yaratish...")
     games_data = [
-        {"slug": "gta5",     "name": "GTA 5 Online",        "description": "Grand Theft Auto V Online — boosting xizmatlari", "sort_order": 0, "is_active": True},
-        {"slug": "wow",      "name": "World of Warcraft",   "description": "WoW boosting (kelajak)",                          "sort_order": 1, "is_active": True},
-        {"slug": "destiny2", "name": "Destiny 2",           "description": "Destiny 2 (yopiq)",                               "sort_order": 2, "is_active": False},
+        {
+            "slug": "gta5",
+            "name": "GTA 5 Online",
+            "description": "Grand Theft Auto V Online — boosting xizmatlari",
+            "sort_order": 0,
+            "is_active": True,
+        },
+        {
+            "slug": "wow",
+            "name": "World of Warcraft",
+            "description": "WoW boosting (kelajak)",
+            "sort_order": 1,
+            "is_active": True,
+        },
+        {
+            "slug": "destiny2",
+            "name": "Destiny 2",
+            "description": "Destiny 2 (yopiq)",
+            "sort_order": 2,
+            "is_active": False,
+        },
     ]
     games_by_slug = {}
     for g in games_data:
-        result = safe(f"game {g['slug']:<10} ({'active' if g['is_active'] else 'inactive'})",
-                      lambda g=g: request("POST", f"{API}/games", g, token))
+        result = safe(
+            f"game {g['slug']:<10} ({'active' if g['is_active'] else 'inactive'})",
+            lambda g=g: request("POST", f"{API}/games", g, token),
+        )
         if result:
             games_by_slug[g["slug"]] = result["id"]
 
@@ -97,12 +135,30 @@ def main():
                 "Cash + premium cars in one package.",
             ],
             "what_you_get": [
-                {"title": "GTA Online Money", "lead": "Your account receives:", "items": ["Cash balance", "Properties access", "Vehicle upgrades"]},
-                {"title": "Premium Cars", "lead": "Setup includes:", "items": ["High-performance vehicles", "Fully upgraded engine", "Custom configuration"]},
+                {
+                    "title": "GTA Online Money",
+                    "lead": "Your account receives:",
+                    "items": ["Cash balance", "Properties access", "Vehicle upgrades"],
+                },
+                {
+                    "title": "Premium Cars",
+                    "lead": "Setup includes:",
+                    "items": [
+                        "High-performance vehicles",
+                        "Fully upgraded engine",
+                        "Custom configuration",
+                    ],
+                },
             ],
             "sections": [
-                {"title": "Designed for PlayStation", "texts": ["Optimized specifically for PS4/PS5 accounts."]},
-                {"title": "Service Format", "texts": ["After checkout, the upgrade process begins."]},
+                {
+                    "title": "Designed for PlayStation",
+                    "texts": ["Optimized specifically for PS4/PS5 accounts."],
+                },
+                {
+                    "title": "Service Format",
+                    "texts": ["After checkout, the upgrade process begins."],
+                },
             ],
             "seo_title": "GTA Online Cash & Cars Boost PS4/PS5",
             "seo_description": "Buy GTA Online cash and cars for PS4 & PS5.",
@@ -110,10 +166,34 @@ def main():
             "is_active": True,
             "sort_order": 0,
             "options": [
-                {"label": "20 million",   "price_usd": 15.99,  "price_eur": 13.99,  "is_default": True,  "sort_order": 0},
-                {"label": "50 million",   "price_usd": 29.99,  "price_eur": 25.99,  "is_default": False, "sort_order": 1},
-                {"label": "100 million",  "price_usd": 44.99,  "price_eur": 38.99,  "is_default": False, "sort_order": 2},
-                {"label": "1 Billion",    "price_usd": 179.99, "price_eur": 153.99, "is_default": False, "sort_order": 3},
+                {
+                    "label": "20 million",
+                    "price_usd": 15.99,
+                    "price_eur": 13.99,
+                    "is_default": True,
+                    "sort_order": 0,
+                },
+                {
+                    "label": "50 million",
+                    "price_usd": 29.99,
+                    "price_eur": 25.99,
+                    "is_default": False,
+                    "sort_order": 1,
+                },
+                {
+                    "label": "100 million",
+                    "price_usd": 44.99,
+                    "price_eur": 38.99,
+                    "is_default": False,
+                    "sort_order": 2,
+                },
+                {
+                    "label": "1 Billion",
+                    "price_usd": 179.99,
+                    "price_eur": 153.99,
+                    "is_default": False,
+                    "sort_order": 3,
+                },
             ],
         },
         {
@@ -123,15 +203,33 @@ def main():
             "platform": "ps",
             "description": ["Increase your in-game balance quickly.", "Skip repetitive grinding."],
             "what_you_get": [
-                {"title": "Money Upgrade", "lead": "Your account receives:", "items": ["Cash balance increase", "Faster progress"]},
+                {
+                    "title": "Money Upgrade",
+                    "lead": "Your account receives:",
+                    "items": ["Cash balance increase", "Faster progress"],
+                },
             ],
             "sections": [
                 {"title": "Optimized for PS", "texts": ["Designed for PS4/PS5 accounts."]},
             ],
-            "is_active": True, "is_featured": False, "sort_order": 1,
+            "is_active": True,
+            "is_featured": False,
+            "sort_order": 1,
             "options": [
-                {"label": "20 million", "price_usd": 19.99, "price_eur": 16.99, "is_default": True,  "sort_order": 0},
-                {"label": "30 million", "price_usd": 29.99, "price_eur": 25.99, "is_default": False, "sort_order": 1},
+                {
+                    "label": "20 million",
+                    "price_usd": 19.99,
+                    "price_eur": 16.99,
+                    "is_default": True,
+                    "sort_order": 0,
+                },
+                {
+                    "label": "30 million",
+                    "price_usd": 29.99,
+                    "price_eur": 25.99,
+                    "is_default": False,
+                    "sort_order": 1,
+                },
             ],
         },
         {
@@ -141,16 +239,40 @@ def main():
             "platform": "ps",
             "description": ["Reach higher ranks faster.", "Access advanced equipment."],
             "what_you_get": [
-                {"title": "Rank Progression", "lead": "Your account unlocks:", "items": ["Advanced weapons", "New missions", "Higher reputation"]},
+                {
+                    "title": "Rank Progression",
+                    "lead": "Your account unlocks:",
+                    "items": ["Advanced weapons", "New missions", "Higher reputation"],
+                },
             ],
             "sections": [
                 {"title": "Built for PS", "texts": ["Optimized for PS4/PS5."]},
             ],
-            "is_active": True, "is_featured": False, "sort_order": 2,
+            "is_active": True,
+            "is_featured": False,
+            "sort_order": 2,
             "options": [
-                {"label": "50 level",  "price_usd": 29.99, "price_eur": 25.99, "is_default": True,  "sort_order": 0},
-                {"label": "100 level", "price_usd": 49.99, "price_eur": 42.99, "is_default": False, "sort_order": 1},
-                {"label": "200 level", "price_usd": 79.99, "price_eur": 68.99, "is_default": False, "sort_order": 2},
+                {
+                    "label": "50 level",
+                    "price_usd": 29.99,
+                    "price_eur": 25.99,
+                    "is_default": True,
+                    "sort_order": 0,
+                },
+                {
+                    "label": "100 level",
+                    "price_usd": 49.99,
+                    "price_eur": 42.99,
+                    "is_default": False,
+                    "sort_order": 1,
+                },
+                {
+                    "label": "200 level",
+                    "price_usd": 79.99,
+                    "price_eur": 68.99,
+                    "is_default": False,
+                    "sort_order": 2,
+                },
             ],
         },
         {
@@ -160,15 +282,33 @@ def main():
             "platform": "xbox",
             "description": ["Start GTA Online with a powerful setup."],
             "what_you_get": [
-                {"title": "Modded Account", "lead": "Includes:", "items": ["High money balance", "High level", "Premium vehicles"]},
+                {
+                    "title": "Modded Account",
+                    "lead": "Includes:",
+                    "items": ["High money balance", "High level", "Premium vehicles"],
+                },
             ],
             "sections": [
                 {"title": "Xbox Compatibility", "texts": ["Prepared for Xbox One/Series."]},
             ],
-            "is_active": True, "is_featured": True, "sort_order": 0,
+            "is_active": True,
+            "is_featured": True,
+            "sort_order": 0,
             "options": [
-                {"label": "level 100 + 15 million",  "price_usd": 29.99,  "price_eur": 25.99,  "is_default": True,  "sort_order": 0},
-                {"label": "level 120 + 1 Billion",   "price_usd": 199.99, "price_eur": 170.99, "is_default": False, "sort_order": 1},
+                {
+                    "label": "level 100 + 15 million",
+                    "price_usd": 29.99,
+                    "price_eur": 25.99,
+                    "is_default": True,
+                    "sort_order": 0,
+                },
+                {
+                    "label": "level 120 + 1 Billion",
+                    "price_usd": 199.99,
+                    "price_eur": 170.99,
+                    "is_default": False,
+                    "sort_order": 1,
+                },
             ],
         },
         {
@@ -178,20 +318,34 @@ def main():
             "platform": "pc",
             "description": ["Unlock the full potential of your GTA Online account."],
             "what_you_get": [
-                {"title": "Full Account Upgrade", "lead": "Your account receives:", "items": ["Maximum stats", "All weapons unlocked", "Achievements unlocked"]},
+                {
+                    "title": "Full Account Upgrade",
+                    "lead": "Your account receives:",
+                    "items": ["Maximum stats", "All weapons unlocked", "Achievements unlocked"],
+                },
             ],
             "sections": [
                 {"title": "PC Optimized", "texts": ["Designed for GTA Online PC."]},
             ],
-            "is_active": True, "is_featured": True, "sort_order": 0,
+            "is_active": True,
+            "is_featured": True,
+            "sort_order": 0,
             "options": [
-                {"label": "Unlock All", "price_usd": 29.99, "price_eur": 25.99, "is_default": True, "sort_order": 0},
+                {
+                    "label": "Unlock All",
+                    "price_usd": 29.99,
+                    "price_eur": 25.99,
+                    "is_default": True,
+                    "sort_order": 0,
+                },
             ],
         },
     ]
     for s in services_data:
-        safe(f"service {s['slug']:<25} ({s['platform']:<4})",
-             lambda s=s: request("POST", f"{API}/services", s, token))
+        safe(
+            f"service {s['slug']:<25} ({s['platform']:<4})",
+            lambda s=s: request("POST", f"{API}/services", s, token),
+        )
 
     print("\n" + "=" * 60)
     print("SEED YAKUNLANDI")

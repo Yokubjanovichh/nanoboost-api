@@ -40,9 +40,7 @@ class DisplayCurrency(StrEnum):
 
 # Allowed status transitions. Empty set = terminal state.
 ORDER_STATUS_TRANSITIONS: dict[OrderStatus, frozenset[OrderStatus]] = {
-    OrderStatus.PENDING: frozenset(
-        {OrderStatus.PAID, OrderStatus.CANCELLED}
-    ),
+    OrderStatus.PENDING: frozenset({OrderStatus.PAID, OrderStatus.CANCELLED}),
     OrderStatus.PAID: frozenset(
         {OrderStatus.IN_PROGRESS, OrderStatus.CANCELLED, OrderStatus.REFUNDED}
     ),

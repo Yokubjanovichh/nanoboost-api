@@ -5,6 +5,7 @@ Revises: 0003
 Create Date: 2026-05-07 00:03:00
 
 """
+
 from collections.abc import Sequence
 
 import sqlalchemy as sa
@@ -85,24 +86,16 @@ def upgrade() -> None:
         ),
         sa.Column("status", order_status, nullable=False, server_default="pending"),
         sa.Column("payment_method", payment_method, nullable=False),
-        sa.Column(
-            "display_currency", display_currency, nullable=False, server_default="USD"
-        ),
-        sa.Column(
-            "subtotal_usd", sa.Numeric(precision=10, scale=2), nullable=False
-        ),
+        sa.Column("display_currency", display_currency, nullable=False, server_default="USD"),
+        sa.Column("subtotal_usd", sa.Numeric(precision=10, scale=2), nullable=False),
         sa.Column(
             "discount_usd",
             sa.Numeric(precision=10, scale=2),
             nullable=False,
             server_default="0",
         ),
-        sa.Column(
-            "discount_percent", sa.Integer(), nullable=False, server_default="0"
-        ),
-        sa.Column(
-            "final_total_usd", sa.Numeric(precision=10, scale=2), nullable=False
-        ),
+        sa.Column("discount_percent", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column("final_total_usd", sa.Numeric(precision=10, scale=2), nullable=False),
         sa.Column("comment", sa.Text(), nullable=True),
         sa.Column("admin_notes", sa.Text(), nullable=True),
         sa.Column("paid_at", sa.DateTime(timezone=True), nullable=True),
@@ -122,12 +115,8 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.UniqueConstraint("order_number", name="uq_orders_order_number"),
-        sa.CheckConstraint(
-            "subtotal_usd >= 0", name="ck_orders_subtotal_nonneg"
-        ),
-        sa.CheckConstraint(
-            "final_total_usd >= 0", name="ck_orders_final_total_nonneg"
-        ),
+        sa.CheckConstraint("subtotal_usd >= 0", name="ck_orders_subtotal_nonneg"),
+        sa.CheckConstraint("final_total_usd >= 0", name="ck_orders_final_total_nonneg"),
         sa.CheckConstraint(
             "discount_percent >= 0 AND discount_percent <= 100",
             name="ck_orders_discount_percent_range",
@@ -168,9 +157,7 @@ def upgrade() -> None:
             sa.Numeric(precision=10, scale=2),
             nullable=False,
         ),
-        sa.Column(
-            "line_total_usd", sa.Numeric(precision=10, scale=2), nullable=False
-        ),
+        sa.Column("line_total_usd", sa.Numeric(precision=10, scale=2), nullable=False),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -184,12 +171,8 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.CheckConstraint("qty > 0", name="ck_order_items_qty_positive"),
-        sa.CheckConstraint(
-            "price_usd_at_order >= 0", name="ck_order_items_price_usd_nonneg"
-        ),
-        sa.CheckConstraint(
-            "price_eur_at_order >= 0", name="ck_order_items_price_eur_nonneg"
-        ),
+        sa.CheckConstraint("price_usd_at_order >= 0", name="ck_order_items_price_usd_nonneg"),
+        sa.CheckConstraint("price_eur_at_order >= 0", name="ck_order_items_price_eur_nonneg"),
     )
     op.create_index("ix_order_items_order_id", "order_items", ["order_id"])
 

@@ -68,9 +68,7 @@ async def list_orders(
 
 
 @router.get("/{order_id}", response_model=OrderDetailRead)
-async def get_order(
-    order_id: UUID, db: DbSession, _: ReadAccess
-) -> OrderDetailRead:
+async def get_order(order_id: UUID, db: DbSession, _: ReadAccess) -> OrderDetailRead:
     order = await OrderService(db).get(order_id)
     return _to_detail(order)
 

@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     def _ensure_async_driver(cls, value: str) -> str:
         for sync_prefix in ("postgresql://", "postgres://"):
             if value.startswith(sync_prefix):
-                return "postgresql+asyncpg://" + value[len(sync_prefix):]
+                return "postgresql+asyncpg://" + value[len(sync_prefix) :]
         return value
 
     JWT_SECRET_KEY: str = Field(min_length=32)

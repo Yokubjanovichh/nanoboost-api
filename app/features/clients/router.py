@@ -24,18 +24,12 @@ async def list_clients(
     page: PaginationDep,
     search: Annotated[str | None, Query(max_length=200)] = None,
 ) -> Paginated[ClientRead]:
-    items, total = await ClientService(db).list(
-        limit=page.limit, offset=page.offset, search=search
-    )
-    return paginate(
-        [ClientRead.model_validate(c) for c in items], total=total, params=page
-    )
+    items, total = await ClientService(db).list(limit=page.limit, offset=page.offset, search=search)
+    return paginate([ClientRead.model_validate(c) for c in items], total=total, params=page)
 
 
 @router.get("/{client_id}", response_model=ClientWithStats)
-async def get_client(
-    client_id: UUID, db: DbSession, _: ReadAccess
-) -> ClientWithStats:
+async def get_client(client_id: UUID, db: DbSession, _: ReadAccess) -> ClientWithStats:
     return await ClientService(db).get_with_stats(client_id)
 
 
@@ -49,9 +43,7 @@ async def list_client_orders(
     items, total = await ClientService(db).list_orders(
         client_id, limit=page.limit, offset=page.offset
     )
-    return paginate(
-        [OrderRead.model_validate(o) for o in items], total=total, params=page
-    )
+    return paginate([OrderRead.model_validate(o) for o in items], total=total, params=page)
 
 
 @router.patch("/{client_id}", response_model=ClientRead)

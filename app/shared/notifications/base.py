@@ -10,8 +10,7 @@ class NotificationBackend(ABC):
     """
 
     @abstractmethod
-    async def send(self, *, subject: str, body: str, **kwargs) -> bool:
-        ...
+    async def send(self, *, subject: str, body: str, **kwargs) -> bool: ...
 
 
 class NoOpBackend(NotificationBackend):

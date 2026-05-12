@@ -27,9 +27,7 @@ class PublicOrderService:
     server-side from the live `services` / `service_options` tables.
     """
 
-    def __init__(
-        self, db: AsyncSession, notifier: OrderNotifier | None = None
-    ) -> None:
+    def __init__(self, db: AsyncSession, notifier: OrderNotifier | None = None) -> None:
         self.db = db
         self.repo = OrderRepository(db)
         self.clients = ClientRepository(db)
@@ -38,18 +36,12 @@ class PublicOrderService:
         self.games = GameRepository(db)
         self.notifier = notifier or get_order_notifier()
 
-    async def _resolve_item(
-        self, payload: PublicOrderItemCreate
-    ) -> tuple[Any, Any, dict]:
+    async def _resolve_item(self, payload: PublicOrderItemCreate) -> tuple[Any, Any, dict]:
         service = await self.services.get_by_id(payload.service_id)
         if service is None or service.is_deleted or not service.is_active:
-            raise ValidationFailureError(
-                f"Service {payload.service_id} is not available"
-            )
+            raise ValidationFailureError(f"Service {payload.service_id} is not available")
 
-        option = await self.options.get_by_id(
-            payload.option_id, service_id=service.id
-        )
+        option = await self.options.get_by_id(payload.option_id, service_id=service.id)
         if option is None:
             raise ValidationFailureError(
                 f"Option {payload.option_id} does not belong to service {service.id}"
@@ -110,9 +102,9 @@ class PublicOrderService:
             discount_percent = USDT_DISCOUNT_PERCENT
         else:
             discount_percent = 0
-        discount_amount = (
-            subtotal_usd * Decimal(discount_percent) / Decimal("100")
-        ).quantize(Decimal("0.01"))
+        discount_amount = (subtotal_usd * Decimal(discount_percent) / Decimal("100")).quantize(
+            Decimal("0.01")
+        )
         final_total = (subtotal_usd - discount_amount).quantize(Decimal("0.01"))
 
         order_number = await self.repo.reserve_next_order_number()

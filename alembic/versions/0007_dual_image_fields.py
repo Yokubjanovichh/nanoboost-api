@@ -5,6 +5,7 @@ Revises: 0006
 Create Date: 2026-05-09 10:00:00
 
 """
+
 from collections.abc import Sequence
 
 import sqlalchemy as sa
@@ -35,8 +36,6 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_column("services", "image_mobile_url")
-    op.alter_column(
-        "services", "image_desktop_url", new_column_name="image_url"
-    )
+    op.alter_column("services", "image_desktop_url", new_column_name="image_url")
     op.drop_column("games", "image_mobile_url")
     op.alter_column("games", "image_desktop_url", new_column_name="image_url")

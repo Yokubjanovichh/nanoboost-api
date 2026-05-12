@@ -2,6 +2,7 @@
 Test orders + clients seed (real schema bilan).
 docker exec nanoboost-api python /app/seed_orders.py
 """
+
 import asyncio
 from datetime import datetime, timedelta, timezone, UTC
 from decimal import Decimal
@@ -17,8 +18,18 @@ from app.features.services.models import Service
 
 CLIENTS = [
     {"email": "john.doe@example.com", "discord": "john_doe#1234", "telegram": None, "notes": None},
-    {"email": "mary.smith@example.com", "discord": None, "telegram": "@mary_gamer", "notes": "VIP клиент, быстрая доставка"},
-    {"email": "alex.dev@example.com", "discord": "alex.dev", "telegram": "@alex_dev", "notes": None},
+    {
+        "email": "mary.smith@example.com",
+        "discord": None,
+        "telegram": "@mary_gamer",
+        "notes": "VIP клиент, быстрая доставка",
+    },
+    {
+        "email": "alex.dev@example.com",
+        "discord": "alex.dev",
+        "telegram": "@alex_dev",
+        "notes": None,
+    },
 ]
 
 
@@ -53,7 +64,13 @@ async def seed():
                 "admin_notes": None,
                 "created_offset_days": 0,
                 "items": [
-                    {"service_slug": "gta-cash-cars-ps", "option_label": "20 million", "qty": 1, "usd": 15.99, "eur": 13.99},
+                    {
+                        "service_slug": "gta-cash-cars-ps",
+                        "option_label": "20 million",
+                        "qty": 1,
+                        "usd": 15.99,
+                        "eur": 13.99,
+                    },
                 ],
             },
             {
@@ -66,7 +83,13 @@ async def seed():
                 "admin_notes": "Оплата подтверждена в TRC20",
                 "created_offset_days": 1,
                 "items": [
-                    {"service_slug": "gta-cash-ps", "option_label": "30 million", "qty": 1, "usd": 29.99, "eur": 25.99},
+                    {
+                        "service_slug": "gta-cash-ps",
+                        "option_label": "30 million",
+                        "qty": 1,
+                        "usd": 29.99,
+                        "eur": 25.99,
+                    },
                 ],
             },
             {
@@ -79,8 +102,20 @@ async def seed():
                 "admin_notes": "Booster: Mike",
                 "created_offset_days": 2,
                 "items": [
-                    {"service_slug": "gta-level-ps", "option_label": "100 level", "qty": 1, "usd": 49.99, "eur": 42.99},
-                    {"service_slug": "gta-cash-ps",  "option_label": "20 million", "qty": 1, "usd": 19.99, "eur": 16.99},
+                    {
+                        "service_slug": "gta-level-ps",
+                        "option_label": "100 level",
+                        "qty": 1,
+                        "usd": 49.99,
+                        "eur": 42.99,
+                    },
+                    {
+                        "service_slug": "gta-cash-ps",
+                        "option_label": "20 million",
+                        "qty": 1,
+                        "usd": 19.99,
+                        "eur": 16.99,
+                    },
                 ],
             },
             {
@@ -93,7 +128,13 @@ async def seed():
                 "admin_notes": "Завершено успешно",
                 "created_offset_days": 3,
                 "items": [
-                    {"service_slug": "gta-modded-xbox", "option_label": "level 120 + 1 Billion", "qty": 1, "usd": 199.99, "eur": 170.99},
+                    {
+                        "service_slug": "gta-modded-xbox",
+                        "option_label": "level 120 + 1 Billion",
+                        "qty": 1,
+                        "usd": 199.99,
+                        "eur": 170.99,
+                    },
                 ],
             },
             {
@@ -106,7 +147,13 @@ async def seed():
                 "admin_notes": "Возврат не требуется",
                 "created_offset_days": 4,
                 "items": [
-                    {"service_slug": "gta-unlock-pc", "option_label": "Unlock All", "qty": 1, "usd": 29.99, "eur": 25.99},
+                    {
+                        "service_slug": "gta-unlock-pc",
+                        "option_label": "Unlock All",
+                        "qty": 1,
+                        "usd": 29.99,
+                        "eur": 25.99,
+                    },
                 ],
             },
         ]
@@ -180,7 +227,9 @@ async def seed():
                 )
                 db.add(order_item)
 
-            print(f"OK    order {spec['order_number']} ({spec['status']:<11}) — {len(spec['items'])} item")
+            print(
+                f"OK    order {spec['order_number']} ({spec['status']:<11}) — {len(spec['items'])} item"
+            )
 
         await db.commit()
         print("\nSEED YAKUNLANDI: 3 client, 5 order")

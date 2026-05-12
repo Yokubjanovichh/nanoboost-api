@@ -10,17 +10,13 @@ from app.features.orders.public_service import PublicOrderService
 public_router = APIRouter(prefix="/public/orders", tags=["public"])
 
 
-@public_router.post(
-    "", response_model=PublicOrderResponse, status_code=status.HTTP_201_CREATED
-)
+@public_router.post("", response_model=PublicOrderResponse, status_code=status.HTTP_201_CREATED)
 async def create_public_order(
     payload: PublicOrderCreate,
     db: DbSession,
     background_tasks: BackgroundTasks,
 ) -> PublicOrderResponse:
-    order = await PublicOrderService(db).create(
-        payload, background_tasks=background_tasks
-    )
+    order = await PublicOrderService(db).create(payload, background_tasks=background_tasks)
     return PublicOrderResponse(
         order_number=order.order_number,
         status=order.status,

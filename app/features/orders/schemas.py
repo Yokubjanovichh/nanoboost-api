@@ -117,9 +117,7 @@ class OrderRead(BaseModel):
     updated_at: datetime
     items_count: int = 0
 
-    @field_serializer(
-        "subtotal_usd", "discount_amount_usd", "final_total_usd"
-    )
+    @field_serializer("subtotal_usd", "discount_amount_usd", "final_total_usd")
     def _serialize_decimal(self, value: Decimal) -> float:
         return float(value)
 
@@ -153,8 +151,6 @@ class OrderStats(BaseModel):
     avg_order_value_usd: Decimal
     by_status: list[StatusBreakdown]
 
-    @field_serializer(
-        "total_revenue_usd", "revenue_today_usd", "avg_order_value_usd"
-    )
+    @field_serializer("total_revenue_usd", "revenue_today_usd", "avg_order_value_usd")
     def _serialize_decimal(self, value: Decimal) -> float:
         return float(value)

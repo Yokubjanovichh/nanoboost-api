@@ -21,9 +21,7 @@ require_role = require_roles  # backward-compat alias
 
 require_superadmin = require_roles(UserRole.SUPERADMIN)
 require_admin_or_above = require_roles(UserRole.SUPERADMIN, UserRole.ADMIN)
-require_manager_or_above = require_roles(
-    UserRole.SUPERADMIN, UserRole.ADMIN, UserRole.MANAGER
-)
+require_manager_or_above = require_roles(UserRole.SUPERADMIN, UserRole.ADMIN, UserRole.MANAGER)
 require_any_authenticated = require_roles(
     UserRole.SUPERADMIN, UserRole.ADMIN, UserRole.MANAGER, UserRole.VIEWER
 )

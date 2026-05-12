@@ -85,15 +85,9 @@ class OrderNotifier:
         new_status: OrderStatus,
     ) -> None:
         try:
-            tg_body = self._format_telegram_status_change(
-                order, old_status, new_status
-            )
-            email_subj = (
-                f"Nanoboost — Обновление статуса {order.order_number}"
-            )
-            email_body = self._format_email_status_change(
-                order, old_status, new_status
-            )
+            tg_body = self._format_telegram_status_change(order, old_status, new_status)
+            email_subj = f"Nanoboost — Обновление статуса {order.order_number}"
+            email_body = self._format_email_status_change(order, old_status, new_status)
 
             await asyncio.gather(
                 self.telegram.send(subject="", body=tg_body),
@@ -124,8 +118,7 @@ class OrderNotifier:
             label = item.option_label or "-"
             line_total = _fmt_money(item.total_price_usd)
             items_lines.append(
-                f"  • {_md_safe(title)} ({_md_safe(label)}) "
-                f"×{item.quantity} — {line_total}"
+                f"  • {_md_safe(title)} ({_md_safe(label)}) ×{item.quantity} — {line_total}"
             )
 
         body_lines = [
@@ -145,8 +138,7 @@ class OrderNotifier:
         ]
         if order.discount_percent:
             body_lines.append(
-                f"🏷️ Скидка (-{order.discount_percent}%): "
-                f"-{_fmt_money(order.discount_amount_usd)}"
+                f"🏷️ Скидка (-{order.discount_percent}%): -{_fmt_money(order.discount_amount_usd)}"
             )
         body_lines.append(f"💰 Итого: *{_fmt_money(order.final_total_usd)}*")
         if order.comment:
@@ -188,8 +180,7 @@ class OrderNotifier:
             title = (item.service_snapshot or {}).get("title") or "Service"
             label = item.option_label or "-"
             items.append(
-                f"  • {title} ({label}) ×{item.quantity} — "
-                f"{_fmt_money(item.total_price_usd)}"
+                f"  • {title} ({label}) ×{item.quantity} — {_fmt_money(item.total_price_usd)}"
             )
 
         lines = [
@@ -209,8 +200,7 @@ class OrderNotifier:
         ]
         if order.discount_percent:
             lines.append(
-                f"Скидка (-{order.discount_percent}%): "
-                f"-{_fmt_money(order.discount_amount_usd)}"
+                f"Скидка (-{order.discount_percent}%): -{_fmt_money(order.discount_amount_usd)}"
             )
         lines.append(f"Итого: {_fmt_money(order.final_total_usd)}")
         if order.comment:

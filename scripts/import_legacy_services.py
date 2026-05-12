@@ -104,9 +104,7 @@ def _parse_option_pair(usd_str: str, eur_str: str) -> tuple[str, Decimal, Decima
     eur_label_m = _LABEL_RE.match(eur_str)
     eur_label = (eur_label_m.group(1) if eur_label_m else eur_str).strip()
     if label != eur_label:
-        raise ValueError(
-            f"USD/EUR option labels diverge: {label!r} vs {eur_label!r}"
-        )
+        raise ValueError(f"USD/EUR option labels diverge: {label!r} vs {eur_label!r}")
 
     return (
         label,
@@ -123,18 +121,13 @@ def _expected_platform(legacy: dict) -> Platform:
     return mapped
 
 
-async def _ensure_game(
-    db, *, slug: str, name: str, create_if_missing: bool
-) -> Game:
-    found = (
-        await db.execute(select(Game).where(Game.slug == slug))
-    ).scalar_one_or_none()
+async def _ensure_game(db, *, slug: str, name: str, create_if_missing: bool) -> Game:
+    found = (await db.execute(select(Game).where(Game.slug == slug))).scalar_one_or_none()
     if found is not None:
         return found
     if not create_if_missing:
         raise RuntimeError(
-            f"Game with slug={slug!r} not found. Pass --create-game-if-missing "
-            f"to auto-create it."
+            f"Game with slug={slug!r} not found. Pass --create-game-if-missing to auto-create it."
         )
     game = Game(slug=slug, name=name, is_active=True)
     db.add(game)
@@ -149,9 +142,7 @@ async def _upsert_service(
     title = _strip_html(legacy.get("titleHtml")) or slug
     platform = _expected_platform(legacy)
 
-    existing = (
-        await db.execute(select(Service).where(Service.slug == slug))
-    ).scalar_one_or_none()
+    existing = (await db.execute(select(Service).where(Service.slug == slug))).scalar_one_or_none()
 
     if existing is not None:
         # Conservative: don't touch existing services on re-run.
@@ -198,9 +189,7 @@ async def _upsert_service(
             strict=True,
         )
     )
-    default_label = (
-        _LABEL_RE.match(legacy.get("defaultOption", "")) or _LABEL_RE.match("")
-    )
+    default_label = _LABEL_RE.match(legacy.get("defaultOption", "")) or _LABEL_RE.match("")
     default_text = (
         default_label.group(1).strip() if default_label and default_label.group(0) else ""
     )

@@ -33,9 +33,7 @@ class DashboardRepository:
         avg_value = Decimal(str(row[2] or 0)).quantize(Decimal("0.01"))
         return total_orders, total_revenue, avg_value
 
-    async def overview_new_clients(
-        self, *, from_dt: datetime, to_dt: datetime
-    ) -> int:
+    async def overview_new_clients(self, *, from_dt: datetime, to_dt: datetime) -> int:
         row = await self.db.execute(
             select(func.count(Client.id)).where(
                 Client.created_at >= from_dt, Client.created_at < to_dt
@@ -43,9 +41,7 @@ class DashboardRepository:
         )
         return int(row.scalar_one() or 0)
 
-    async def overview_by_status(
-        self, *, from_dt: datetime, to_dt: datetime
-    ) -> dict[str, int]:
+    async def overview_by_status(self, *, from_dt: datetime, to_dt: datetime) -> dict[str, int]:
         rows = (
             await self.db.execute(
                 select(Order.status, func.count(Order.id))
@@ -67,9 +63,7 @@ class DashboardRepository:
         ).all()
         return {str(method.value): int(count or 0) for method, count in rows}
 
-    async def revenue_per_day(
-        self, *, from_dt: datetime, to_dt: datetime
-    ) -> dict:
+    async def revenue_per_day(self, *, from_dt: datetime, to_dt: datetime) -> dict:
         """Returns {date_obj: (revenue_decimal, orders_count)} for non-empty days."""
         # Cross-dialect: cast created_at to date.
         date_col = func.date(Order.created_at).label("d")
@@ -97,9 +91,7 @@ class DashboardRepository:
             )
         return result
 
-    async def top_services(
-        self, *, from_dt: datetime, to_dt: datetime, limit: int
-    ) -> list[tuple]:
+    async def top_services(self, *, from_dt: datetime, to_dt: datetime, limit: int) -> list[tuple]:
         """Returns rows: (service_id, slug, title, orders_count, revenue_usd)."""
         q = (
             select(
@@ -107,9 +99,7 @@ class DashboardRepository:
                 Service.slug,
                 Service.title,
                 func.count(func.distinct(OrderItem.order_id)).label("orders_count"),
-                func.coalesce(func.sum(OrderItem.total_price_usd), 0).label(
-                    "revenue_usd"
-                ),
+                func.coalesce(func.sum(OrderItem.total_price_usd), 0).label("revenue_usd"),
             )
             .join(Order, Order.id == OrderItem.order_id)
             .join(Service, Service.id == OrderItem.service_id)

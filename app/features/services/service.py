@@ -207,9 +207,7 @@ class ServiceOptionService:
         await self._ensure_service(service_id)
         return await self.repo.list_by_service(service_id)
 
-    async def create(
-        self, service_id: UUID, payload: ServiceOptionCreate
-    ) -> ServiceOption:
+    async def create(self, service_id: UUID, payload: ServiceOptionCreate) -> ServiceOption:
         await self._ensure_service(service_id)
 
         if payload.is_default:
@@ -260,9 +258,7 @@ class ServiceOptionService:
         await self.repo.delete(option)
         await self.db.commit()
 
-    async def reorder(
-        self, service_id: UUID, payload: ReorderRequest
-    ) -> int:
+    async def reorder(self, service_id: UUID, payload: ReorderRequest) -> int:
         await self._ensure_service(service_id)
         pairs = [(item.id, item.sort_order) for item in payload.items]
         updated = await self.repo.bulk_update_sort_order(service_id, pairs)

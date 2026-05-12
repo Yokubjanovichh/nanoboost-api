@@ -49,9 +49,7 @@ def _validate_image_bytes(content: bytes, declared_mime: str) -> str:
 
     actual_mime = _PIL_FORMAT_TO_MIME.get(fmt)
     if actual_mime is None:
-        raise InvalidUploadError(
-            f"Image format '{fmt}' is not supported. Use webp, jpeg, or png."
-        )
+        raise InvalidUploadError(f"Image format '{fmt}' is not supported. Use webp, jpeg, or png.")
     if actual_mime != declared_mime:
         raise InvalidUploadError(
             f"Declared content type {declared_mime} does not match actual {actual_mime}"

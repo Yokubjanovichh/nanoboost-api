@@ -5,6 +5,7 @@ Revises: 0002
 Create Date: 2026-05-07 00:02:00
 
 """
+
 from collections.abc import Sequence
 
 import sqlalchemy as sa
@@ -20,7 +21,9 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     service_platform = postgresql.ENUM(
-        "ps", "xbox", "pc",
+        "ps",
+        "xbox",
+        "pc",
         name="service_platform",
         create_type=False,
     )
@@ -66,9 +69,7 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.text("false"),
         ),
-        sa.Column(
-            "sort_order", sa.Integer(), nullable=False, server_default="0"
-        ),
+        sa.Column("sort_order", sa.Integer(), nullable=False, server_default="0"),
         sa.Column(
             "is_active",
             sa.Boolean(),
@@ -147,9 +148,7 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.text("false"),
         ),
-        sa.Column(
-            "sort_order", sa.Integer(), nullable=False, server_default="0"
-        ),
+        sa.Column("sort_order", sa.Integer(), nullable=False, server_default="0"),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -183,9 +182,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index(
-        "uq_service_options_default_per_service", table_name="service_options"
-    )
+    op.drop_index("uq_service_options_default_per_service", table_name="service_options")
     op.drop_index("ix_service_options_service_sort", table_name="service_options")
     op.drop_table("service_options")
 
