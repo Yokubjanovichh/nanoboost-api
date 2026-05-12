@@ -46,7 +46,8 @@ class ServiceService:
             slug=payload.slug,
             title=payload.title,
             platform=payload.platform,
-            image_url=payload.image_url,
+            image_desktop_url=payload.image_desktop_url,
+            image_mobile_url=payload.image_mobile_url,
             image_alt=payload.image_alt,
             description=list(payload.description),
             what_you_get=_what_you_get_to_dict(payload.what_you_get),
@@ -130,8 +131,10 @@ class ServiceService:
             service.title = payload.title
         if payload.platform is not None:
             service.platform = payload.platform
-        if payload.image_url is not None:
-            service.image_url = payload.image_url
+        if payload.image_desktop_url is not None:
+            service.image_desktop_url = payload.image_desktop_url
+        if payload.image_mobile_url is not None:
+            service.image_mobile_url = payload.image_mobile_url
         if payload.image_alt is not None:
             service.image_alt = payload.image_alt
         if payload.description is not None:

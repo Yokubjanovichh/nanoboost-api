@@ -162,7 +162,7 @@ class OrderService:
                 return {
                     "slug": service_obj.slug,
                     "title": service_obj.title,
-                    "image_url": service_obj.image_url,
+                    "image_url": service_obj.image_desktop_url,
                     "platform": service_obj.platform.value,
                     "game_slug": game_obj.slug if game_obj else None,
                 }

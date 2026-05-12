@@ -27,7 +27,8 @@ class GameService:
             slug=payload.slug,
             name=payload.name,
             description=payload.description,
-            image_url=payload.image_url,
+            image_desktop_url=payload.image_desktop_url,
+            image_mobile_url=payload.image_mobile_url,
             sort_order=payload.sort_order,
             is_active=payload.is_active,
         )
@@ -71,8 +72,10 @@ class GameService:
             game.name = payload.name
         if payload.description is not None:
             game.description = payload.description
-        if payload.image_url is not None:
-            game.image_url = payload.image_url
+        if payload.image_desktop_url is not None:
+            game.image_desktop_url = payload.image_desktop_url
+        if payload.image_mobile_url is not None:
+            game.image_mobile_url = payload.image_mobile_url
         if payload.sort_order is not None:
             game.sort_order = payload.sort_order
         if payload.is_active is not None:

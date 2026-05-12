@@ -165,7 +165,8 @@ async def _upsert_service(
         slug=slug,
         title=title,
         platform=platform,
-        image_url=None,  # static frontend path — left as None for now
+        image_desktop_url=None,  # static frontend path — left as None for now
+        image_mobile_url=None,
         image_alt=legacy.get("imageAlt"),
         description=_clean_list(legacy.get("description")),
         what_you_get=[

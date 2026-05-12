@@ -59,7 +59,7 @@ class PublicOrderService:
         snapshot = {
             "slug": service.slug,
             "title": service.title,
-            "image_url": service.image_url,
+            "image_url": service.image_desktop_url,
             "platform": service.platform.value,
             "game_slug": game.slug if game else None,
         }

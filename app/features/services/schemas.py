@@ -85,7 +85,8 @@ class PublicGameSummary(BaseModel):
 class ServiceBase(BaseModel):
     title: str = Field(min_length=2, max_length=300)
     platform: Platform
-    image_url: str | None = Field(default=None, max_length=500)
+    image_desktop_url: str | None = Field(default=None, max_length=500)
+    image_mobile_url: str | None = Field(default=None, max_length=500)
     image_alt: str | None = Field(default=None, max_length=300)
     description: list[str] = Field(default_factory=list)
     what_you_get: list[WhatYouGetItem] = Field(default_factory=list)
@@ -119,7 +120,8 @@ class ServiceUpdate(BaseModel):
     )
     title: str | None = Field(default=None, min_length=2, max_length=300)
     platform: Platform | None = None
-    image_url: str | None = Field(default=None, max_length=500)
+    image_desktop_url: str | None = Field(default=None, max_length=500)
+    image_mobile_url: str | None = Field(default=None, max_length=500)
     image_alt: str | None = Field(default=None, max_length=300)
     description: list[str] | None = None
     what_you_get: list[WhatYouGetItem] | None = None
@@ -175,7 +177,8 @@ class PublicServiceRead(BaseModel):
     slug: str
     title: str
     platform: Platform
-    image_url: str | None
+    image_desktop_url: str | None
+    image_mobile_url: str | None
     image_alt: str | None
     description: list[str]
     what_you_get: list[WhatYouGetItem]
