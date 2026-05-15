@@ -36,9 +36,9 @@ async def ecomtrade24_webhook(
     background_tasks: BackgroundTasks,
 ) -> dict:
     raw_body = await request.body()
-    signature = request.headers.get(
-        "X-EcomTrade24-Signature"
-    ) or request.headers.get("X-Signature", "")
+    signature = request.headers.get("X-EcomTrade24-Signature") or request.headers.get(
+        "X-Signature", ""
+    )
 
     provider = get_payment_provider(PaymentMethod.CARD_ECOMTRADE24)
     if provider is None:  # registry misconfigured — bail out
@@ -83,9 +83,7 @@ async def ecomtrade24_webhook(
     order: Order | None = None
     if event.order_id:
         order = (
-            await db.execute(
-                select(Order).where(Order.order_number == event.order_id)
-            )
+            await db.execute(select(Order).where(Order.order_number == event.order_id))
         ).scalar_one_or_none()
 
     if order is not None and event.status == "paid" and order.status == OrderStatus.PENDING:

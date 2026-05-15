@@ -25,9 +25,7 @@ def upgrade() -> None:
     # a sub-block that commits before continuing, so the new value becomes
     # visible to subsequent statements in the same migration.
     with op.get_context().autocommit_block():
-        op.execute(
-            "ALTER TYPE payment_method ADD VALUE IF NOT EXISTS 'card_ecomtrade24'"
-        )
+        op.execute("ALTER TYPE payment_method ADD VALUE IF NOT EXISTS 'card_ecomtrade24'")
 
     # --- orders payment columns ---
     op.add_column(
@@ -44,9 +42,7 @@ def upgrade() -> None:
     )
     op.add_column(
         "orders",
-        sa.Column(
-            "payment_status_updated_at", sa.DateTime(timezone=True), nullable=True
-        ),
+        sa.Column("payment_status_updated_at", sa.DateTime(timezone=True), nullable=True),
     )
 
     # --- payment_webhook_events ---

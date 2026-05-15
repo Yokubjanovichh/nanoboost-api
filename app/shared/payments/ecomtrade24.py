@@ -44,17 +44,13 @@ class EcomTrade24Provider(PaymentProvider):
         # using ECOMTRADE24_API_KEY auth. Until then we surface a clear
         # "not configured yet" signal to the router.
         del order, return_url, cancel_url
-        raise NotImplementedError(
-            "EcomTrade24 checkout session creation is not configured yet"
-        )
+        raise NotImplementedError("EcomTrade24 checkout session creation is not configured yet")
 
     def verify_webhook_signature(self, raw_body: bytes, signature: str) -> bool:
         secret = settings.ECOMTRADE24_WEBHOOK_SECRET
         if not secret or not signature:
             return False
-        expected = hmac.new(
-            secret.encode("utf-8"), raw_body, hashlib.sha256
-        ).hexdigest()
+        expected = hmac.new(secret.encode("utf-8"), raw_body, hashlib.sha256).hexdigest()
         return hmac.compare_digest(expected, signature.strip().lower())
 
     def parse_webhook_event(self, payload: dict) -> WebhookEvent:
@@ -62,9 +58,7 @@ class EcomTrade24Provider(PaymentProvider):
             event_id = str(payload["event_id"])
             event_type = str(payload["event_type"])
         except (KeyError, TypeError) as exc:
-            raise ValueError(
-                "EcomTrade24 webhook payload missing event_id/event_type"
-            ) from exc
+            raise ValueError("EcomTrade24 webhook payload missing event_id/event_type") from exc
 
         # Provider echoes our `order_number` back as `external_reference`.
         order_ref = payload.get("external_reference") or payload.get("order_id")

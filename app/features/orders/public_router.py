@@ -17,9 +17,7 @@ logger = logging.getLogger("nanoboost.public_orders")
 public_router = APIRouter(prefix="/public/orders", tags=["public"])
 
 
-@public_router.post(
-    "", response_model=PublicOrderResponse, status_code=status.HTTP_201_CREATED
-)
+@public_router.post("", response_model=PublicOrderResponse, status_code=status.HTTP_201_CREATED)
 async def create_public_order(
     payload: PublicOrderCreate,
     db: DbSession,
@@ -30,12 +28,8 @@ async def create_public_order(
     checkout_url: str | None = None
     provider = get_payment_provider(payload.payment_method)
     if provider is not None:
-        return_url = (
-            f"{settings.PUBLIC_SITE_URL}/payment-success?order={order.order_number}"
-        )
-        cancel_url = (
-            f"{settings.PUBLIC_SITE_URL}/payment-cancelled?order={order.order_number}"
-        )
+        return_url = f"{settings.PUBLIC_SITE_URL}/payment-success?order={order.order_number}"
+        cancel_url = f"{settings.PUBLIC_SITE_URL}/payment-cancelled?order={order.order_number}"
         try:
             session = await provider.create_session(
                 order, return_url=return_url, cancel_url=cancel_url
