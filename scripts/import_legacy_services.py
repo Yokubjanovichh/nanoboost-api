@@ -43,6 +43,7 @@ from decimal import Decimal
 from pathlib import Path
 
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from app.core.constants import Platform
 from app.db.session import AsyncSessionLocal
@@ -121,6 +122,77 @@ def _expected_platform(legacy: dict) -> Platform:
     return mapped
 
 
+def _normalise_image_src(image_src: str | None) -> str | None:
+    """Rewrite the legacy frontend asset path into the public-site URL form.
+
+    services-data.js stores paths like "../assets/images/services3.webp" — a
+    path relative to /pages/*.html. We strip the "../" and keep the
+    "/assets/images/..." form so the public site can resolve it from root.
+    Admins replace these with /uploads/services/... URLs once the proper
+    image is uploaded via the admin panel.
+    """
+    if not image_src:
+        return None
+    cleaned = image_src.strip()
+    if not cleaned:
+        return None
+    while cleaned.startswith("../"):
+        cleaned = cleaned[3:]
+    while cleaned.startswith("./"):
+        cleaned = cleaned[2:]
+    if not cleaned.startswith(("/", "http://", "https://")):
+        cleaned = "/" + cleaned
+    return cleaned
+
+
+def _build_service_payload(legacy: dict) -> dict:
+    """Shared field map used by both INSERT and UPDATE branches."""
+    return {
+        "title": _strip_html(legacy.get("titleHtml")) or "",
+        "platform": _expected_platform(legacy),
+        "image_desktop_url": _normalise_image_src(legacy.get("imageSrc")),
+        "image_mobile_url": None,
+        "image_alt": legacy.get("imageAlt"),
+        "description": _clean_list(legacy.get("description")),
+        "what_you_get": [
+            {
+                "title": _strip_html(item.get("title")),
+                "lead": _strip_html(item.get("lead", "")),
+                "items": _clean_list(item.get("items")),
+            }
+            for item in legacy.get("whatYouGet") or []
+        ],
+        "sections": [
+            {
+                "title": _strip_html(item.get("title")),
+                "texts": _clean_list(item.get("texts")),
+            }
+            for item in legacy.get("sections") or []
+        ],
+        "seo_title": _strip_html(legacy.get("seoTitle")) or None,
+        "seo_description": _strip_html(legacy.get("seoDescription")) or None,
+    }
+
+
+def _build_options(legacy: dict) -> list[tuple[str, Decimal, Decimal, bool, int]]:
+    """Returns [(label, usd, eur, is_default, sort_order), ...]."""
+    options_pairs = list(
+        zip(
+            legacy.get("options") or [],
+            legacy.get("eurOptions") or [],
+            strict=True,
+        )
+    )
+    default_match = _LABEL_RE.match(legacy.get("defaultOption", "") or "")
+    default_text = default_match.group(1).strip() if default_match else ""
+
+    out: list[tuple[str, Decimal, Decimal, bool, int]] = []
+    for sort_idx, (usd_str, eur_str) in enumerate(options_pairs):
+        label, usd, eur = _parse_option_pair(usd_str, eur_str)
+        out.append((label, usd, eur, label == default_text, sort_idx))
+    return out
+
+
 async def _ensure_game(db, *, slug: str, name: str, create_if_missing: bool) -> Game:
     found = (await db.execute(select(Game).where(Game.slug == slug))).scalar_one_or_none()
     if found is not None:
@@ -136,81 +208,92 @@ async def _ensure_game(db, *, slug: str, name: str, create_if_missing: bool) -> 
 
 
 async def _upsert_service(
-    db, *, game: Game, slug: str, legacy: dict, dry_run: bool
+    db, *, game: Game, slug: str, legacy: dict, dry_run: bool, update_existing: bool
 ) -> tuple[str, int]:
-    """Returns (action, options_inserted) where action ∈ {created, updated, skipped}."""
-    title = _strip_html(legacy.get("titleHtml")) or slug
-    platform = _expected_platform(legacy)
+    """Returns (action, options_inserted) where
+    action ∈ {created, updated, skipped, would-create, would-update}.
+    """
+    fields = _build_service_payload(legacy)
+    title = fields["title"] or slug
 
-    existing = (await db.execute(select(Service).where(Service.slug == slug))).scalar_one_or_none()
+    existing = (
+        await db.execute(
+            select(Service).options(selectinload(Service.options)).where(Service.slug == slug)
+        )
+    ).scalar_one_or_none()
+
+    options_data = _build_options(legacy)
 
     if existing is not None:
-        # Conservative: don't touch existing services on re-run.
-        return ("skipped", 0)
+        if not update_existing:
+            return ("skipped", 0)
+        if dry_run:
+            return ("would-update", len(options_data))
+
+        # Refresh editable fields. game_id stays put — we don't move a
+        # service across games once it's in the wild.
+        existing.title = title
+        existing.platform = fields["platform"]
+        existing.image_desktop_url = fields["image_desktop_url"]
+        existing.image_alt = fields["image_alt"]
+        existing.description = fields["description"]
+        existing.what_you_get = fields["what_you_get"]
+        existing.sections = fields["sections"]
+        existing.seo_title = fields["seo_title"]
+        existing.seo_description = fields["seo_description"]
+        # NB: image_mobile_url is NOT overwritten — admins curate it via
+        # the panel; importer must not clobber their work on re-runs.
+
+        # Replace options wholesale — orphan-delete cascade cleans the old.
+        existing.options.clear()
+        await db.flush()
+        for label, usd, eur, is_default, sort_order in options_data:
+            existing.options.append(
+                ServiceOption(
+                    label=label,
+                    price_usd=usd,
+                    price_eur=eur,
+                    is_default=is_default,
+                    sort_order=sort_order,
+                )
+            )
+        await db.flush()
+        return ("updated", len(options_data))
 
     if dry_run:
-        return ("would-create", len(legacy.get("options", [])))
+        return ("would-create", len(options_data))
 
     service = Service(
         game_id=game.id,
         slug=slug,
         title=title,
-        platform=platform,
-        image_desktop_url=None,  # static frontend path — left as None for now
-        image_mobile_url=None,
-        image_alt=legacy.get("imageAlt"),
-        description=_clean_list(legacy.get("description")),
-        what_you_get=[
-            {
-                "title": _strip_html(item.get("title")),
-                "lead": _strip_html(item.get("lead", "")),
-                "items": _clean_list(item.get("items")),
-            }
-            for item in legacy.get("whatYouGet") or []
-        ],
-        sections=[
-            {
-                "title": _strip_html(item.get("title")),
-                "texts": _clean_list(item.get("texts")),
-            }
-            for item in legacy.get("sections") or []
-        ],
-        seo_title=_strip_html(legacy.get("seoTitle")) or None,
-        seo_description=_strip_html(legacy.get("seoDescription")) or None,
+        platform=fields["platform"],
+        image_desktop_url=fields["image_desktop_url"],
+        image_mobile_url=fields["image_mobile_url"],
+        image_alt=fields["image_alt"],
+        description=fields["description"],
+        what_you_get=fields["what_you_get"],
+        sections=fields["sections"],
+        seo_title=fields["seo_title"],
+        seo_description=fields["seo_description"],
         is_active=True,
         is_featured=False,
         sort_order=0,
     )
-
-    options_pairs = list(
-        zip(
-            legacy.get("options") or [],
-            legacy.get("eurOptions") or [],
-            strict=True,
-        )
-    )
-    default_label = _LABEL_RE.match(legacy.get("defaultOption", "")) or _LABEL_RE.match("")
-    default_text = (
-        default_label.group(1).strip() if default_label and default_label.group(0) else ""
-    )
-
-    inserted = 0
-    for sort_idx, (usd_str, eur_str) in enumerate(options_pairs):
-        label, usd, eur = _parse_option_pair(usd_str, eur_str)
+    for label, usd, eur, is_default, sort_order in options_data:
         service.options.append(
             ServiceOption(
                 label=label,
                 price_usd=usd,
                 price_eur=eur,
-                is_default=(label == default_text),
-                sort_order=sort_idx,
+                is_default=is_default,
+                sort_order=sort_order,
             )
         )
-        inserted += 1
 
     db.add(service)
     await db.flush()
-    return ("created", inserted)
+    return ("created", len(options_data))
 
 
 async def import_into(
@@ -221,12 +304,21 @@ async def import_into(
     game_name: str,
     create_game_if_missing: bool,
     dry_run: bool,
+    update_existing: bool = False,
 ) -> dict:
     """Run the importer against a caller-supplied AsyncSession.
 
     Returns the summary dict so tests and the CLI both reuse the same path.
     """
-    summary = {"created": 0, "skipped": 0, "would-create": 0, "options": 0}
+    summary = {
+        "created": 0,
+        "updated": 0,
+        "skipped": 0,
+        "would-create": 0,
+        "would-update": 0,
+        "failed": 0,
+        "options": 0,
+    }
 
     game = await _ensure_game(
         db,
@@ -237,10 +329,16 @@ async def import_into(
     for slug, legacy in raw.items():
         try:
             action, opts = await _upsert_service(
-                db, game=game, slug=slug, legacy=legacy, dry_run=dry_run
+                db,
+                game=game,
+                slug=slug,
+                legacy=legacy,
+                dry_run=dry_run,
+                update_existing=update_existing,
             )
         except Exception:
-            logger.exception("Failed for slug=%s", slug)
+            logger.exception("FAIL %s", slug)
+            summary["failed"] += 1
             continue
 
         summary[action] = summary.get(action, 0) + 1
@@ -263,6 +361,7 @@ async def run(
     game_name: str,
     create_game_if_missing: bool,
     dry_run: bool,
+    update_existing: bool,
 ) -> None:
     if not input_path.exists():
         logger.error("Input file not found: %s", input_path)
@@ -281,6 +380,7 @@ async def run(
             game_name=game_name,
             create_game_if_missing=create_game_if_missing,
             dry_run=dry_run,
+            update_existing=update_existing,
         )
 
     logger.info("Summary: %s", summary)
@@ -309,6 +409,16 @@ def _parse_args() -> argparse.Namespace:
         action="store_true",
         help="Parse and validate; rollback at the end",
     )
+    p.add_argument(
+        "--update",
+        action="store_true",
+        help=(
+            "Refresh services that already exist (title, description, "
+            "options, prices, image_desktop_url). image_mobile_url and "
+            "is_featured / sort_order curated in the admin panel are "
+            "preserved."
+        ),
+    )
     return p.parse_args()
 
 
@@ -321,5 +431,6 @@ if __name__ == "__main__":
             game_name=args.game_name,
             create_game_if_missing=args.create_game_if_missing,
             dry_run=args.dry_run,
+            update_existing=args.update,
         )
     )
