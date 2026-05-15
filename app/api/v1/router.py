@@ -7,6 +7,7 @@ from app.features.games.router import public_router as games_public_router
 from app.features.games.router import router as games_router
 from app.features.orders.public_router import public_router as orders_public_router
 from app.features.orders.router import router as orders_router
+from app.features.payments.router import router as payments_router
 from app.features.reviews.router import public_router as reviews_public_router
 from app.features.reviews.router import router as reviews_router
 from app.features.services.router import public_router as services_public_router
@@ -28,3 +29,4 @@ api_router.include_router(games_public_router)
 api_router.include_router(services_public_router)
 api_router.include_router(reviews_public_router)
 api_router.include_router(orders_public_router)
+api_router.include_router(payments_router)

@@ -84,6 +84,14 @@ class Order(Base, TimestampMixin):
     cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     refunded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    # Payment provider integration (provider-agnostic — set by gateway adapter)
+    payment_provider: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    payment_session_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    payment_checkout_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    payment_status_updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
     items: Mapped[list["OrderItem"]] = relationship(
         "OrderItem",
         back_populates="order",

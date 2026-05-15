@@ -31,6 +31,7 @@ class OrderStatus(StrEnum):
 class PaymentMethod(StrEnum):
     PAYPAL = "paypal"
     USDT_TRC20 = "usdt_trc20"
+    CARD_ECOMTRADE24 = "card_ecomtrade24"
 
 
 class DisplayCurrency(StrEnum):

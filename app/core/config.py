@@ -62,6 +62,13 @@ class Settings(BaseSettings):
     SMTP_FROM: str = "orders@nanoboost.io"
     NOTIFY_EMAIL: str = "admin@nanoboost.io"
 
+    # Payment infrastructure (provider-agnostic + EcomTrade24)
+    PUBLIC_SITE_URL: str = "https://nanoboost.io"
+    ECOMTRADE24_API_KEY: str = ""
+    ECOMTRADE24_WEBHOOK_SECRET: str = ""
+    ECOMTRADE24_BASE_URL: str = "https://pay.ecomtrade24.com"
+    ECOMTRADE24_DOMAIN: str = "nanoboost.io"
+
     @property
     def is_dev(self) -> bool:
         return self.ENVIRONMENT == "dev"
