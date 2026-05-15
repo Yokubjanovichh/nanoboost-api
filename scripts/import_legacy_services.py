@@ -43,6 +43,7 @@ from decimal import Decimal
 from pathlib import Path
 
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from app.core.constants import Platform
 from app.db.session import AsyncSessionLocal
@@ -137,6 +138,8 @@ def _normalise_image_src(image_src: str | None) -> str | None:
         return None
     while cleaned.startswith("../"):
         cleaned = cleaned[3:]
+    while cleaned.startswith("./"):
+        cleaned = cleaned[2:]
     if not cleaned.startswith(("/", "http://", "https://")):
         cleaned = "/" + cleaned
     return cleaned
@@ -303,12 +306,21 @@ async def import_into(
     game_name: str,
     create_game_if_missing: bool,
     dry_run: bool,
+    update_existing: bool = False,
 ) -> dict:
     """Run the importer against a caller-supplied AsyncSession.
 
     Returns the summary dict so tests and the CLI both reuse the same path.
     """
-    summary = {"created": 0, "skipped": 0, "would-create": 0, "options": 0}
+    summary = {
+        "created": 0,
+        "updated": 0,
+        "skipped": 0,
+        "would-create": 0,
+        "would-update": 0,
+        "failed": 0,
+        "options": 0,
+    }
 
     game = await _ensure_game(
         db,
@@ -319,10 +331,16 @@ async def import_into(
     for slug, legacy in raw.items():
         try:
             action, opts = await _upsert_service(
-                db, game=game, slug=slug, legacy=legacy, dry_run=dry_run
+                db,
+                game=game,
+                slug=slug,
+                legacy=legacy,
+                dry_run=dry_run,
+                update_existing=update_existing,
             )
         except Exception:
-            logger.exception("Failed for slug=%s", slug)
+            logger.exception("FAIL %s", slug)
+            summary["failed"] += 1
             continue
 
         summary[action] = summary.get(action, 0) + 1
@@ -345,6 +363,7 @@ async def run(
     game_name: str,
     create_game_if_missing: bool,
     dry_run: bool,
+    update_existing: bool,
 ) -> None:
     if not input_path.exists():
         logger.error("Input file not found: %s", input_path)
@@ -363,6 +382,7 @@ async def run(
             game_name=game_name,
             create_game_if_missing=create_game_if_missing,
             dry_run=dry_run,
+            update_existing=update_existing,
         )
 
     logger.info("Summary: %s", summary)
@@ -391,6 +411,16 @@ def _parse_args() -> argparse.Namespace:
         action="store_true",
         help="Parse and validate; rollback at the end",
     )
+    p.add_argument(
+        "--update",
+        action="store_true",
+        help=(
+            "Refresh services that already exist (title, description, "
+            "options, prices, image_desktop_url). image_mobile_url and "
+            "is_featured / sort_order curated in the admin panel are "
+            "preserved."
+        ),
+    )
     return p.parse_args()
 
 
@@ -403,5 +433,6 @@ if __name__ == "__main__":
             game_name=args.game_name,
             create_game_if_missing=args.create_game_if_missing,
             dry_run=args.dry_run,
+            update_existing=args.update,
         )
     )
