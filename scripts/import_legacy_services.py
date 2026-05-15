@@ -218,9 +218,7 @@ async def _upsert_service(
 
     existing = (
         await db.execute(
-            select(Service)
-            .options(selectinload(Service.options))
-            .where(Service.slug == slug)
+            select(Service).options(selectinload(Service.options)).where(Service.slug == slug)
         )
     ).scalar_one_or_none()
 
