@@ -30,3 +30,6 @@ class PublicOrderResponse(BaseModel):
     final_total_usd: float
     display_currency: DisplayCurrency
     created_at: datetime
+    # Populated when the chosen payment_method has a hosted-checkout provider
+    # registered (e.g. card_ecomtrade24). PayPal/USDT keep this as None.
+    checkout_url: str | None = None

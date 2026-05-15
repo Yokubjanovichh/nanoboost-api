@@ -13,6 +13,7 @@ from app.db.base import Base
 from app.features.clients import models as clients_models  # noqa: F401
 from app.features.games import models as games_models  # noqa: F401
 from app.features.orders import models as orders_models  # noqa: F401
+from app.features.payments import models as payments_models  # noqa: F401
 from app.features.reviews import models as reviews_models  # noqa: F401
 from app.features.services import models as services_models  # noqa: F401
 from app.features.users import models as users_models  # noqa: F401
