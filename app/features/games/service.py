@@ -4,6 +4,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.constants import GameStatus
 from app.core.exceptions import ConflictError, NotFoundError
 from app.features.games.models import Game
 from app.features.games.repository import GameRepository
@@ -30,7 +31,7 @@ class GameService:
             image_desktop_url=payload.image_desktop_url,
             image_mobile_url=payload.image_mobile_url,
             sort_order=payload.sort_order,
-            is_active=payload.is_active,
+            status=payload.status,
         )
         await self.repo.add(game)
         await self.db.commit()
@@ -48,12 +49,12 @@ class GameService:
         *,
         limit: int,
         offset: int,
-        is_active: bool | None = None,
+        status: GameStatus | None = None,
         search: str | None = None,
         sort: str | None = None,
     ) -> tuple[list[Game], int]:
         return await self.repo.list_paginated(
-            limit=limit, offset=offset, is_active=is_active, search=search, sort=sort
+            limit=limit, offset=offset, status=status, search=search, sort=sort
         )
 
     async def list_public(self) -> list[Game]:
@@ -78,16 +79,9 @@ class GameService:
             game.image_mobile_url = payload.image_mobile_url
         if payload.sort_order is not None:
             game.sort_order = payload.sort_order
-        if payload.is_active is not None:
-            game.is_active = payload.is_active
+        if payload.status is not None:
+            game.status = payload.status
 
-        await self.db.commit()
-        await self.db.refresh(game)
-        return game
-
-    async def toggle_active(self, game_id: UUID) -> Game:
-        game = await self.get(game_id)
-        game.is_active = not game.is_active
         await self.db.commit()
         await self.db.refresh(game)
         return game
@@ -95,7 +89,7 @@ class GameService:
     async def soft_delete(self, game_id: UUID) -> None:
         game = await self.get(game_id)
         game.is_deleted = True
-        game.is_active = False
+        game.status = GameStatus.HIDDEN
         await self.db.commit()
 
     async def reorder(self, payload: ReorderRequest) -> int:

@@ -3,6 +3,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.core.constants import GameStatus
+
 SLUG_PATTERN = r"^[a-z0-9]+(-[a-z0-9]+)*$"
 
 
@@ -12,7 +14,7 @@ class GameBase(BaseModel):
     image_desktop_url: str | None = Field(default=None, max_length=500)
     image_mobile_url: str | None = Field(default=None, max_length=500)
     sort_order: int = Field(default=0, ge=0)
-    is_active: bool = True
+    status: GameStatus = GameStatus.ACTIVE
 
 
 class GameCreate(GameBase):
@@ -26,7 +28,7 @@ class GameUpdate(BaseModel):
     image_desktop_url: str | None = Field(default=None, max_length=500)
     image_mobile_url: str | None = Field(default=None, max_length=500)
     sort_order: int | None = Field(default=None, ge=0)
-    is_active: bool | None = None
+    status: GameStatus | None = None
 
 
 class GameRead(GameBase):
@@ -47,6 +49,7 @@ class PublicGameRead(BaseModel):
     description: str | None
     image_desktop_url: str | None
     image_mobile_url: str | None
+    status: GameStatus
 
 
 class ReorderItem(BaseModel):

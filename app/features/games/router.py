@@ -3,6 +3,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
 
+from app.core.constants import GameStatus
 from app.core.dependencies import DbSession
 from app.core.permissions import (
     require_admin_or_above,
@@ -33,14 +34,14 @@ async def list_games(
     db: DbSession,
     _: ReadAccess,
     page: PaginationDep,
-    is_active: Annotated[bool | None, Query()] = None,
+    status: Annotated[GameStatus | None, Query()] = None,
     search: Annotated[str | None, Query(max_length=200)] = None,
     sort: Annotated[str | None, Query()] = None,
 ) -> Paginated[GameRead]:
     items, total = await GameService(db).list(
         limit=page.limit,
         offset=page.offset,
-        is_active=is_active,
+        status=status,
         search=search,
         sort=sort,
     )
@@ -72,12 +73,6 @@ async def update_game(
     game_id: UUID, payload: GameUpdate, db: DbSession, _: ManagerAccess
 ) -> GameRead:
     game = await GameService(db).update(game_id, payload)
-    return GameRead.model_validate(game)
-
-
-@router.patch("/{game_id}/toggle", response_model=GameRead)
-async def toggle_game(game_id: UUID, db: DbSession, _: ManagerAccess) -> GameRead:
-    game = await GameService(db).toggle_active(game_id)
     return GameRead.model_validate(game)
 
 

@@ -86,27 +86,27 @@ def main():
             "name": "GTA 5 Online",
             "description": "Grand Theft Auto V Online — boosting xizmatlari",
             "sort_order": 0,
-            "is_active": True,
+            "status": "active",
         },
         {
             "slug": "wow",
             "name": "World of Warcraft",
             "description": "WoW boosting (kelajak)",
             "sort_order": 1,
-            "is_active": True,
+            "status": "coming_soon",
         },
         {
             "slug": "destiny2",
             "name": "Destiny 2",
             "description": "Destiny 2 (yopiq)",
             "sort_order": 2,
-            "is_active": False,
+            "status": "hidden",
         },
     ]
     games_by_slug = {}
     for g in games_data:
         result = safe(
-            f"game {g['slug']:<10} ({'active' if g['is_active'] else 'inactive'})",
+            f"game {g['slug']:<10} ({g['status']})",
             lambda g=g: request("POST", f"{API}/games", g, token),
         )
         if result:

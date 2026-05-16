@@ -3,6 +3,7 @@ from uuid import UUID
 from sqlalchemy import asc, desc, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.constants import GameStatus
 from app.features.games.models import Game
 
 _SORTABLE_FIELDS = {
@@ -35,16 +36,16 @@ class GameRepository:
         *,
         limit: int,
         offset: int,
-        is_active: bool | None = None,
+        status: GameStatus | None = None,
         search: str | None = None,
         sort: str | None = None,
     ) -> tuple[list[Game], int]:
         items_q = self._base_query()
         count_q = select(func.count()).select_from(Game).where(Game.is_deleted.is_(False))
 
-        if is_active is not None:
-            items_q = items_q.where(Game.is_active.is_(is_active))
-            count_q = count_q.where(Game.is_active.is_(is_active))
+        if status is not None:
+            items_q = items_q.where(Game.status == status)
+            count_q = count_q.where(Game.status == status)
 
         if search:
             pattern = f"%{search.strip()}%"
@@ -62,9 +63,11 @@ class GameRepository:
         return list(items), total
 
     async def list_public(self) -> list[Game]:
+        # Public site shows active + coming_soon (latter rendered disabled).
+        # Hidden games are filtered out entirely.
         q = (
             select(Game)
-            .where(Game.is_deleted.is_(False), Game.is_active.is_(True))
+            .where(Game.is_deleted.is_(False), Game.status != GameStatus.HIDDEN)
             .order_by(asc(Game.sort_order), asc(Game.created_at))
         )
         return list((await self.db.execute(q)).scalars().all())
