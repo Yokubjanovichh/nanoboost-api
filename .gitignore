@@ -58,6 +58,7 @@ dist/
 
 # ─── Legacy migration data (one-off, contains business data) ─────────────────
 services-data.json
+reviews-data.json
 
 # ─── Docker volumes (local dev only) ─────────────────────────────────────────
 postgres_data/

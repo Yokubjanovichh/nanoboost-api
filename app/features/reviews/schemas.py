@@ -17,6 +17,7 @@ class PublicServiceSummary(BaseModel):
 
     slug: str
     title: str
+    platform: str
 
 
 class ReviewBase(BaseModel):
