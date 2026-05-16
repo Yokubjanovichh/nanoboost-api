@@ -87,10 +87,11 @@ async def _login(client: httpx.AsyncClient, base_url: str, email: str, password:
 async def _fetch_games_by_slug(
     client: httpx.AsyncClient, base_url: str, token: str
 ) -> dict[str, dict]:
-    """Single page fetch up to 200 — we only ever have a handful of games."""
+    # Single page fetch up to 100 (API's max page_size). We only ever have a
+    # handful of games, so paginating isn't worth it yet.
     res = await client.get(
         f"{base_url}/api/v1/games",
-        params={"page_size": 200},
+        params={"page_size": 100},
         headers={"Authorization": f"Bearer {token}"},
     )
     res.raise_for_status()
