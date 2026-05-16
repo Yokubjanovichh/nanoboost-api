@@ -73,9 +73,7 @@ def _validate(entry: dict, index: int) -> None:
 async def _resolve_service_map(db, slugs: set[str]) -> dict[str, Service]:
     if not slugs:
         return {}
-    rows = (
-        await db.execute(select(Service).where(Service.slug.in_(slugs)))
-    ).scalars().all()
+    rows = (await db.execute(select(Service).where(Service.slug.in_(slugs)))).scalars().all()
     return {svc.slug: svc for svc in rows}
 
 
