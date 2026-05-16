@@ -2,13 +2,16 @@ import logging
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, status
+from sqlalchemy import select
 
 from app.core.config import settings
 from app.core.dependencies import DbSession
 from app.core.exceptions import InvalidPaymentError, PaymentProviderError
+from app.features.orders.models import Order
 from app.features.orders.public_schemas import (
     PublicOrderCreate,
     PublicOrderResponse,
+    PublicOrderStatusResponse,
 )
 from app.features.orders.public_service import PublicOrderService
 from app.shared.payments import get_payment_provider
@@ -82,4 +85,33 @@ async def create_public_order(
         display_currency=order.display_currency,
         created_at=order.created_at,
         checkout_url=checkout_url,
+    )
+
+
+@public_router.get(
+    "/{order_number}/status",
+    response_model=PublicOrderStatusResponse,
+)
+async def get_public_order_status(
+    order_number: str,
+    db: DbSession,
+) -> PublicOrderStatusResponse:
+    """Polled by the payment-success page after the customer returns from
+    the hosted checkout. Public — order_number is the only credential, same
+    trust posture as a Stripe/PayPal session reference. PII-free response.
+    """
+    order = (
+        await db.execute(select(Order).where(Order.order_number == order_number))
+    ).scalar_one_or_none()
+    if order is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Order not found",
+        )
+    return PublicOrderStatusResponse(
+        order_number=order.order_number,
+        status=order.status,
+        paid_at=order.paid_at,
+        final_total_usd=float(order.final_total_usd),
+        display_currency=order.display_currency,
     )

@@ -33,3 +33,16 @@ class PublicOrderResponse(BaseModel):
     # Populated when the chosen payment_method has a hosted-checkout provider
     # registered (e.g. card_ecomtrade24). PayPal/USDT keep this as None.
     checkout_url: str | None = None
+
+
+class PublicOrderStatusResponse(BaseModel):
+    """Polled by the public payment-success page. Intentionally PII-free —
+    anyone with the order_number can read this, same trust level as a
+    Stripe/PayPal session reference.
+    """
+
+    order_number: str
+    status: OrderStatus
+    paid_at: datetime | None = None
+    final_total_usd: float
+    display_currency: DisplayCurrency
