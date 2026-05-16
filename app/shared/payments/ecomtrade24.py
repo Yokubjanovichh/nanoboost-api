@@ -41,9 +41,7 @@ PROVIDER_NAME = "ecomtrade24"
 # map falls through to a generic "Ошибка платёжной системы: <code>" so the
 # operator can grep logs against the exact upstream code.
 _ERROR_MESSAGES: dict[str, str] = {
-    "invalid_domain": (
-        "Платёжный сервис не сконфигурирован. Свяжитесь с поддержкой."
-    ),
+    "invalid_domain": ("Платёжный сервис не сконфигурирован. Свяжитесь с поддержкой."),
     "valid_customer_email_required": "Укажите корректный email.",
     "missing_merchant_payout_wallet": (
         "Платёжный сервис временно недоступен. Свяжитесь с поддержкой."
@@ -99,9 +97,7 @@ class EcomTrade24Provider(PaymentProvider):
                 order.order_number,
                 order.final_total_usd,
             )
-            raise PaymentProviderError(
-                "EcomTrade24 не отвечает. Попробуйте позже."
-            ) from exc
+            raise PaymentProviderError("EcomTrade24 не отвечает. Попробуйте позже.") from exc
         except httpx.HTTPError as exc:
             logger.warning(
                 "EcomTrade24 transport error: order=%s err=%s",
@@ -142,9 +138,7 @@ class EcomTrade24Provider(PaymentProvider):
                 "EcomTrade24 ok=False or missing fields: order=%s",
                 order.order_number,
             )
-            raise PaymentProviderError(
-                "Платёжная сессия не создана. Свяжитесь с поддержкой."
-            )
+            raise PaymentProviderError("Платёжная сессия не создана. Свяжитесь с поддержкой.")
 
         session = CheckoutSession(
             provider=self.name,
