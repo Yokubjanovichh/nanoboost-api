@@ -19,6 +19,12 @@ class Platform(StrEnum):
     PC = "pc"
 
 
+class GameStatus(StrEnum):
+    ACTIVE = "active"
+    COMING_SOON = "coming_soon"
+    HIDDEN = "hidden"
+
+
 class OrderStatus(StrEnum):
     PENDING = "pending"
     PAID = "paid"

@@ -201,7 +201,7 @@ async def _ensure_game(db, *, slug: str, name: str, create_if_missing: bool) -> 
         raise RuntimeError(
             f"Game with slug={slug!r} not found. Pass --create-game-if-missing to auto-create it."
         )
-    game = Game(slug=slug, name=name, is_active=True)
+    game = Game(slug=slug, name=name)  # status defaults to ACTIVE
     db.add(game)
     await db.flush()
     return game
