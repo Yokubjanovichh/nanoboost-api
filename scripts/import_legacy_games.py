@@ -97,9 +97,7 @@ async def _fetch_games_by_slug(
     return {g["slug"]: g for g in res.json().get("items", [])}
 
 
-async def _create_game(
-    client: httpx.AsyncClient, base_url: str, token: str, payload: dict
-) -> dict:
+async def _create_game(client: httpx.AsyncClient, base_url: str, token: str, payload: dict) -> dict:
     res = await client.post(
         f"{base_url}/api/v1/games",
         headers={"Authorization": f"Bearer {token}"},
@@ -123,9 +121,7 @@ async def _patch_game(
     return res.json()
 
 
-async def _upload_one(
-    client: httpx.AsyncClient, base_url: str, token: str, file_path: Path
-) -> str:
+async def _upload_one(client: httpx.AsyncClient, base_url: str, token: str, file_path: Path) -> str:
     """Upload a file to /uploads?folder=games. Returns the public URL."""
     suffix = file_path.suffix.lower()
     mime = {
