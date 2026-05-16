@@ -32,12 +32,8 @@ NEW_SLUG = "gta5"
 
 async def run() -> None:
     async with AsyncSessionLocal() as db:
-        old = (
-            await db.execute(select(Game).where(Game.slug == OLD_SLUG))
-        ).scalar_one_or_none()
-        new = (
-            await db.execute(select(Game).where(Game.slug == NEW_SLUG))
-        ).scalar_one_or_none()
+        old = (await db.execute(select(Game).where(Game.slug == OLD_SLUG))).scalar_one_or_none()
+        new = (await db.execute(select(Game).where(Game.slug == NEW_SLUG))).scalar_one_or_none()
 
         if old is None:
             logger.info("Nothing to merge: %r not found", OLD_SLUG)
@@ -55,9 +51,7 @@ async def run() -> None:
 
         moved = (
             await db.execute(
-                update(Service)
-                .where(Service.game_id == old.id)
-                .values(game_id=new.id)
+                update(Service).where(Service.game_id == old.id).values(game_id=new.id)
             )
         ).rowcount or 0
         logger.info(
