@@ -69,3 +69,27 @@ class ValidationFailureError(AppError):
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=detail,
         )
+
+
+class InvalidPaymentError(AppError):
+    """User-facing payment validation failure (e.g. amount below the
+    provider minimum). Detail is shown verbatim to the customer.
+    """
+
+    def __init__(self, detail: str) -> None:
+        super().__init__(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=detail,
+        )
+
+
+class PaymentProviderError(AppError):
+    """Upstream payment provider returned an error or is unreachable.
+    Detail is a user-friendly message (no API keys / signatures leaked).
+    """
+
+    def __init__(self, detail: str) -> None:
+        super().__init__(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=detail,
+        )

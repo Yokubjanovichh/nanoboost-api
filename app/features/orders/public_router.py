@@ -5,6 +5,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, status
 
 from app.core.config import settings
 from app.core.dependencies import DbSession
+from app.core.exceptions import InvalidPaymentError, PaymentProviderError
 from app.features.orders.public_schemas import (
     PublicOrderCreate,
     PublicOrderResponse,
@@ -34,10 +35,15 @@ async def create_public_order(
             session = await provider.create_session(
                 order, return_url=return_url, cancel_url=cancel_url
             )
+        except (InvalidPaymentError, PaymentProviderError):
+            # Both already carry user-friendly Russian detail + correct
+            # HTTP status (400 / 502). Let FastAPI return them as-is.
+            raise
         except NotImplementedError as exc:
-            # Phase 1 skeleton — provider class is wired but credentials/
-            # implementation arrive in Phase 4. Surface as 503 so the
-            # frontend can show a clear "try another method" CTA.
+            # Reached only if a future provider is wired up but not yet
+            # implemented. Phase 4 EcomTrade24 is implemented now; this
+            # branch stays as a safety net for the next provider that
+            # arrives skeleton-first.
             logger.warning(
                 "Payment provider %s not configured yet (order=%s): %s",
                 provider.name,
@@ -47,6 +53,19 @@ async def create_public_order(
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Payment provider not yet configured",
+            ) from exc
+        except Exception as exc:
+            # Anything unexpected from a provider becomes a generic 502 —
+            # we don't leak stack traces or upstream payload shape to the
+            # customer. Full traceback hits the logs via exc_info.
+            logger.exception(
+                "Payment provider %s raised unexpectedly (order=%s)",
+                provider.name,
+                order.order_number,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Ошибка платёжной системы. Попробуйте позже.",
             ) from exc
 
         order.payment_provider = session.provider
