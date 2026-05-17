@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Path, Query, status
 
 from app.core.constants import Platform
 from app.core.dependencies import DbSession
@@ -211,23 +211,41 @@ async def delete_option(service_id: UUID, option_id: UUID, db: DbSession, _: Man
 
 # --- Public router -----------------------------------------------------------
 
+# Slug pattern: lowercase letters, digits, single hyphens (no leading/trailing
+# dash). Matches what GameCreate / ServiceCreate accept on the admin side, so
+# any slug a public client passes mirrors a value the admin could store.
+_PUBLIC_SLUG_PATTERN = r"^[a-z0-9]+(-[a-z0-9]+)*$"
+
 public_router = APIRouter(prefix="/public/services", tags=["public"])
 
 
 @public_router.get("", response_model=list[PublicServiceRead])
 async def list_public_services(
     db: DbSession,
-    game: Annotated[str | None, Query(description="Game slug")] = None,
+    game: Annotated[
+        str | None,
+        Query(
+            description="Game slug",
+            pattern=_PUBLIC_SLUG_PATTERN,
+            max_length=100,
+        ),
+    ] = None,
     platform: Annotated[Platform | None, Query()] = None,
     featured: Annotated[bool | None, Query()] = None,
+    page: Annotated[int, Query(ge=1, le=10000)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100)] = 100,
 ) -> list[PublicServiceRead]:
     services = await ServiceService(db).list_public(
         game_slug=game, platform=platform, featured=featured
     )
-    return [PublicServiceRead.model_validate(s) for s in services]
+    start = (page - 1) * page_size
+    return [PublicServiceRead.model_validate(s) for s in services[start : start + page_size]]
 
 
 @public_router.get("/{slug}", response_model=PublicServiceRead)
-async def get_public_service(slug: str, db: DbSession) -> PublicServiceRead:
+async def get_public_service(
+    slug: Annotated[str, Path(pattern=_PUBLIC_SLUG_PATTERN, max_length=150)],
+    db: DbSession,
+) -> PublicServiceRead:
     service = await ServiceService(db).get_public(slug)
     return PublicServiceRead.model_validate(service)

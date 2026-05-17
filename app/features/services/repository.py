@@ -6,7 +6,7 @@ from sqlalchemy import asc, desc, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.constants import Platform
+from app.core.constants import GameStatus, Platform
 from app.features.games.models import Game
 from app.features.services.models import Service, ServiceOption
 
@@ -126,7 +126,9 @@ class ServiceRepository:
         )
         if game_slug is not None:
             q = q.join(Game, Game.id == Service.game_id).where(
-                Game.slug == game_slug, Game.is_deleted.is_(False), Game.is_active.is_(True)
+                Game.slug == game_slug,
+                Game.is_deleted.is_(False),
+                Game.status != GameStatus.HIDDEN,
             )
         if platform is not None:
             q = q.where(Service.platform == platform)
