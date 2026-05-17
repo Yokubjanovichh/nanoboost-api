@@ -1,3 +1,4 @@
+import hashlib
 from typing import Annotated
 from uuid import UUID
 
@@ -231,24 +232,53 @@ async def list_public_services(
             max_length=100,
         ),
     ] = None,
-    platform: Annotated[Platform | None, Query()] = None,
+    platform: Annotated[
+        str | None,
+        Query(
+            description="Platform: ps | xbox | pc (case-insensitive)",
+            # (?i:...) is the inline case-insensitive flag — Pydantic v2
+            # passes the pattern straight to `re.match`, so this lets the
+            # frontend send `PS` or `Ps` and still validate.
+            pattern=r"(?i)^(ps|xbox|pc)$",
+        ),
+    ] = None,
     featured: Annotated[bool | None, Query()] = None,
+    search: Annotated[
+        str | None,
+        Query(
+            description="Substring match on title + description",
+            min_length=2,
+            max_length=100,
+        ),
+    ] = None,
     page: Annotated[int, Query(ge=1, le=10000)] = 1,
     page_size: Annotated[int, Query(ge=1, le=100)] = 100,
 ):
-    # Cache key includes every filter that affects the response. `featured`
-    # is on the wire but defaults to None, so we keep it in the key only
-    # when the caller passed it — empty `featured=` segment otherwise.
+    # Normalise the wire string back to the canonical enum value before
+    # caching + querying. None stays None.
+    platform_enum = Platform(platform.lower()) if platform else None
+
+    # Cache key includes every filter that affects the response. Search
+    # query gets sha256-hashed to keep keys bounded — full text can be
+    # up to 100 chars and could carry odd characters.
+    search_norm = (search or "").strip()
+    search_token = (
+        hashlib.sha256(search_norm.lower().encode("utf-8")).hexdigest()[:8] if search_norm else ""
+    )
     key = (
         f"public:services:v1:game={game or ''}"
-        f":platform={platform.value if platform else ''}"
+        f":platform={platform_enum.value if platform_enum else ''}"
         f":featured={'' if featured is None else int(featured)}"
+        f":search={search_token}"
         f":page={page}:size={page_size}"
     )
 
     async def _build():
         services = await ServiceService(db).list_public(
-            game_slug=game, platform=platform, featured=featured
+            game_slug=game,
+            platform=platform_enum,
+            featured=featured,
+            search=search_norm or None,
         )
         start = (page - 1) * page_size
         return [
