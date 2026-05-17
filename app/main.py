@@ -1,4 +1,5 @@
 import logging
+import mimetypes
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
@@ -6,7 +7,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import IntegrityError
-from starlette.types import Scope
 
 from app.api.v1.router import api_router
 from app.core.config import settings
@@ -14,23 +14,23 @@ from app.core.exceptions import AppError
 
 logger = logging.getLogger("nanoboost.api")
 
+# Register image MIME types explicitly. Starlette's FileResponse defers to
+# `mimetypes.guess_type`, and on slim Linux containers (Railway uses
+# python:slim) `.webp` isn't always registered, so it falls back to
+# `text/plain`. Registering up-front guarantees correct Content-Type.
+for ext, mime in (
+    (".webp", "image/webp"),
+    (".jpg", "image/jpeg"),
+    (".jpeg", "image/jpeg"),
+    (".png", "image/png"),
+    (".gif", "image/gif"),
+    (".svg", "image/svg+xml"),
+):
+    mimetypes.add_type(mime, ext)
+
 # Uploaded files are content-hashed at write time (e.g. services3_d71e05544582.webp),
 # so any change produces a new URL. That makes long-lived immutable caching safe.
 _UPLOAD_CACHE_CONTROL = "public, max-age=31536000, immutable"
-
-
-class CachedStaticFiles(StaticFiles):
-    """StaticFiles with a long-lived immutable Cache-Control on 200s.
-
-    Only successful responses get the header — 404s stay uncached so a
-    fresh upload at the same path isn't masked by negative caching.
-    """
-
-    async def get_response(self, path: str, scope: Scope):
-        response = await super().get_response(path, scope)
-        if response.status_code == 200:
-            response.headers["Cache-Control"] = _UPLOAD_CACHE_CONTROL
-        return response
 
 
 app = FastAPI(
@@ -48,6 +48,24 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def uploads_cache_headers(request: Request, call_next):
+    """Long-lived immutable Cache-Control for the /uploads/* mount.
+
+    Acts on the outgoing response so headers are set after StaticFiles is
+    done — the previous `get_response` override silently lost the header
+    in some Starlette paths. Scoped to 200s; 404s stay uncached so a
+    fresh upload at the same path isn't masked by negative caching.
+    """
+    response = await call_next(request)
+    if (
+        response.status_code == 200
+        and request.url.path.startswith(settings.UPLOADS_URL_PREFIX + "/")
+    ):
+        response.headers["Cache-Control"] = _UPLOAD_CACHE_CONTROL
+    return response
 
 
 @app.exception_handler(AppError)
@@ -94,6 +112,6 @@ uploads_dir = Path(settings.UPLOADS_DIR)
 uploads_dir.mkdir(parents=True, exist_ok=True)
 app.mount(
     settings.UPLOADS_URL_PREFIX,
-    CachedStaticFiles(directory=uploads_dir, check_dir=False),
+    StaticFiles(directory=uploads_dir, check_dir=False),
     name="uploads",
 )
