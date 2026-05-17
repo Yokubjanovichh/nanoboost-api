@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from sqlalchemy import asc, desc, func, or_, select, update
+from sqlalchemy import String, asc, cast, desc, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -117,6 +117,7 @@ class ServiceRepository:
         game_slug: str | None = None,
         platform: Platform | None = None,
         featured: bool | None = None,
+        search: str | None = None,
     ) -> list[Service]:
         q = (
             select(Service)
@@ -134,6 +135,24 @@ class ServiceRepository:
             q = q.where(Service.platform == platform)
         if featured is not None:
             q = q.where(Service.is_featured.is_(featured))
+        if search:
+            # SQLAlchemy's `.ilike` becomes native ILIKE on Postgres and
+            # `LOWER(col) LIKE LOWER(?)` elsewhere — case-insensitive on
+            # both backends without writing dialect-specific SQL. The
+            # parameter substitution is what keeps this injection-safe;
+            # `%`/`_` inside the user input become literal LIKE
+            # wildcards (low-cost feature, not a vuln).
+            #
+            # Description is JSON (JSONB on Postgres); cast-to-text gives
+            # us a substring match across the whole array without
+            # element-by-element extraction.
+            pattern = f"%{search.strip()}%"
+            q = q.where(
+                or_(
+                    Service.title.ilike(pattern),
+                    cast(Service.description, String).ilike(pattern),
+                )
+            )
 
         return list((await self.db.execute(q)).scalars().all())
 

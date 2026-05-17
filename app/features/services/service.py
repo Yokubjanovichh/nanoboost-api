@@ -109,9 +109,13 @@ class ServiceService:
         game_slug: str | None = None,
         platform: Platform | None = None,
         featured: bool | None = None,
+        search: str | None = None,
     ) -> list[Service]:
         return await self.repo.list_public(
-            game_slug=game_slug, platform=platform, featured=featured
+            game_slug=game_slug,
+            platform=platform,
+            featured=featured,
+            search=search,
         )
 
     async def get_public(self, slug: str) -> Service:
