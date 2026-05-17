@@ -60,9 +60,8 @@ async def uploads_cache_headers(request: Request, call_next):
     fresh upload at the same path isn't masked by negative caching.
     """
     response = await call_next(request)
-    if (
-        response.status_code == 200
-        and request.url.path.startswith(settings.UPLOADS_URL_PREFIX + "/")
+    if response.status_code == 200 and request.url.path.startswith(
+        settings.UPLOADS_URL_PREFIX + "/"
     ):
         response.headers["Cache-Control"] = _UPLOAD_CACHE_CONTROL
     return response
