@@ -60,30 +60,54 @@ uvicorn app.main:app --reload
 
 ---
 
-## Tests
+## Testing
 
-```bash
-pytest                          # fast: in-memory SQLite (no Postgres)
-pytest -m "not integration"     # explicit unit-only run
+Suite layout:
+
+```
+tests/
+├── conftest.py            Shared fixtures (DB session, test client, users, sample data)
+├── unit/                  Pure-function tests (security, payment strategy, transitions)
+├── integration/           HTTP → middleware → router → DB endpoint tests
+└── e2e/                   Startup + smoke (incident-coverage tests live here)
 ```
 
-### Integration tests (Phase 7 outline)
+### Run locally (fast — SQLite default)
 
-Integration tests run against a real Postgres container — they cover
-Postgres-specific behavior (ENUM duplicate-create, JSONB indexing,
-`pg_advisory_xact_lock`, partial unique indexes, ON DELETE RESTRICT
-violations).
+```bash
+pytest                          # full suite on file-backed SQLite, ~25s
+pytest tests/unit/              # pure-function tests, no DB, <1s
+pytest tests/e2e/test_startup.py -v   # the incident-coverage test (see note below)
+pytest --cov=app --cov-report=term    # with coverage
+```
+
+Local default: a temp SQLite file per run, no Docker needed. Tests
+marked `@pytest.mark.integration` (Postgres-specific behaviour: ENUM
+duplicate-create, JSONB, `pg_advisory_xact_lock`) auto-skip under
+SQLite — the conftest checks the actual marker, not the directory name.
+
+### Run with real Postgres (production parity)
 
 ```bash
 docker compose --profile test up -d postgres-test
 DATABASE_URL=postgresql+asyncpg://nanoboost:nanoboost@localhost:5433/nanoboost_test \
   alembic upgrade head
 DATABASE_URL=postgresql+asyncpg://nanoboost:nanoboost@localhost:5433/nanoboost_test \
-  pytest -m integration
+  pytest
 ```
 
-Tests not marked `@pytest.mark.integration` continue to pass on SQLite —
-the conftest hook automatically skips integration suites under SQLite.
+### CI
+
+Every push and PR runs `pytest tests/ --cov=app --cov-fail-under=60`
+against a real `postgres:16` service. The job is named `test` and is
+required by branch protection on `main` — a red test blocks merge.
+
+The single test that would have caught the apscheduler P0
+(`tests/e2e/test_startup.py::test_app_imports_without_error`) lives at
+the top of the e2e suite; it imports `app.main` and would have failed
+CI before PR #15 could merge if it had been in place.
+
+### Lint + format
 
 ```bash
 ruff check .
