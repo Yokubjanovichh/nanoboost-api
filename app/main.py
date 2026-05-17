@@ -1,5 +1,6 @@
 import logging
 import mimetypes
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
@@ -11,8 +12,18 @@ from sqlalchemy.exc import IntegrityError
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.exceptions import AppError
+from app.shared import scheduler as scheduler_module
 
 logger = logging.getLogger("nanoboost.api")
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    scheduler_module.start()
+    try:
+        yield
+    finally:
+        scheduler_module.shutdown()
 
 # Register image MIME types explicitly. Starlette's FileResponse defers to
 # `mimetypes.guess_type`, and on slim Linux containers (Railway uses
@@ -50,6 +61,7 @@ app = FastAPI(
     description="REST API for Nanoboost public site and admin panel.",
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
