@@ -50,6 +50,7 @@ class PublicGameRead(BaseModel):
     image_desktop_url: str | None
     image_mobile_url: str | None
     status: GameStatus
+    service_count: int = 0
 
 
 class ReorderItem(BaseModel):

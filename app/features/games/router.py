@@ -86,5 +86,8 @@ public_router = APIRouter(prefix="/public/games", tags=["public"])
 
 @public_router.get("", response_model=list[PublicGameRead])
 async def list_public_games(db: DbSession) -> list[PublicGameRead]:
-    games = await GameService(db).list_public()
-    return [PublicGameRead.model_validate(g) for g in games]
+    rows = await GameService(db).list_public()
+    return [
+        PublicGameRead.model_validate(game).model_copy(update={"service_count": count})
+        for game, count in rows
+    ]
