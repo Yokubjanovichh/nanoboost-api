@@ -25,6 +25,7 @@ async def lifespan(_app: FastAPI):
     finally:
         scheduler_module.shutdown()
 
+
 # Register image MIME types explicitly. Starlette's FileResponse defers to
 # `mimetypes.guess_type`, and on slim Linux containers (Railway uses
 # python:slim) `.webp` isn't always registered, so it falls back to
