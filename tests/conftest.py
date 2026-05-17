@@ -72,16 +72,22 @@ def pytest_collection_modifyitems(config, items):
 async def _fresh_schema():
     """Create + drop the schema around every test for full isolation.
 
-    Cheap on SQLite (sub-ms); on Postgres the integration job runs
-    `alembic upgrade head` once at job start and we trust transactional
-    cleanup per test instead (out of scope for this fixture — see
-    db_session below).
+    `engine.dispose()` is critical on asyncpg/Postgres: pytest-asyncio
+    spins up a fresh event loop per test (function-scoped default), but
+    the module-level engine caches connections from prior tests' loops.
+    Reusing one across loops raises "Task got Future attached to a
+    different loop". SQLite happens to tolerate this because aiosqlite
+    talks to a worker thread, not the loop directly — which is why this
+    only burned in CI. Disposing the pool first forces fresh connections
+    bound to the current test's loop.
     """
+    await engine.dispose()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
+    await engine.dispose()
 
 
 @pytest_asyncio.fixture
