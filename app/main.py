@@ -6,12 +6,31 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import IntegrityError
+from starlette.types import Scope
 
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.exceptions import AppError
 
 logger = logging.getLogger("nanoboost.api")
+
+# Uploaded files are content-hashed at write time (e.g. services3_d71e05544582.webp),
+# so any change produces a new URL. That makes long-lived immutable caching safe.
+_UPLOAD_CACHE_CONTROL = "public, max-age=31536000, immutable"
+
+
+class CachedStaticFiles(StaticFiles):
+    """StaticFiles with a long-lived immutable Cache-Control on 200s.
+
+    Only successful responses get the header — 404s stay uncached so a
+    fresh upload at the same path isn't masked by negative caching.
+    """
+
+    async def get_response(self, path: str, scope: Scope):
+        response = await super().get_response(path, scope)
+        if response.status_code == 200:
+            response.headers["Cache-Control"] = _UPLOAD_CACHE_CONTROL
+        return response
 
 app = FastAPI(
     title="Nanoboost Admin API",
@@ -74,6 +93,6 @@ uploads_dir = Path(settings.UPLOADS_DIR)
 uploads_dir.mkdir(parents=True, exist_ok=True)
 app.mount(
     settings.UPLOADS_URL_PREFIX,
-    StaticFiles(directory=uploads_dir, check_dir=False),
+    CachedStaticFiles(directory=uploads_dir, check_dir=False),
     name="uploads",
 )
