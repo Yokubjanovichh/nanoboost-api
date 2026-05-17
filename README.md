@@ -116,6 +116,65 @@ ruff format --check .
 
 ---
 
+## Caching
+
+`/public/*` reads are Redis-cached with smart invalidation. The cache
+is **optional** — empty `REDIS_URL` (or an unreachable broker) makes
+every request hit the DB directly and respond with `X-Cache: BYPASS`.
+The API stays up if Redis goes down.
+
+### Keys + TTLs
+
+| Endpoint | Key shape | TTL |
+|---|---|---|
+| `GET /public/games` | `public:games:v1` | 300s |
+| `GET /public/services` | `public:services:v1:game=<g>:platform=<p>:featured=<f>:page=<n>:size=<n>` | 180s |
+| `GET /public/services/{slug}` | `public:services:v1:slug=<slug>` | 180s |
+| `GET /public/reviews` | `public:reviews:v1:service_id=<id>:featured=<f>` | 600s |
+
+The `v1` segment is a schema version — bump it on any response-shape
+change to invalidate the entire layer atomically.
+
+### Invalidation map (admin writes)
+
+| Admin write | Patterns cleared |
+|---|---|
+| Game CRUD | `public:games:*` |
+| Service CRUD (incl. options) | `public:services:*` **and** `public:games:*` (service_count lives on the games payload) |
+| Review CRUD | `public:reviews:*` |
+
+Deletion uses `SCAN` + `DEL`, never `KEYS *` (which blocks Redis on
+large keyspaces).
+
+### X-Cache header
+
+Every cached endpoint returns one of:
+
+- `HIT` — served from Redis
+- `MISS` — computed and stored
+- `BYPASS` — cache unavailable, served from DB (no store)
+
+### Health
+
+`GET /health` returns `{"status": "ok", "redis": "ok|down|disabled"}`.
+`disabled` means no `REDIS_URL` is configured. `down` means the URL is
+set but the broker isn't responding — endpoints stay up via BYPASS.
+
+### Local dev
+
+```bash
+docker compose up redis -d   # or `docker run --rm -p 6379:6379 redis:7-alpine`
+export REDIS_URL=redis://localhost:6379/0
+uvicorn app.main:app --reload
+```
+
+Tests don't need a real Redis — `tests/conftest.py` exposes a
+`fakeredis_client` fixture that swaps an in-process fake in for the
+duration of a test. CI also runs `redis:7-alpine` as a service for
+end-to-end coverage.
+
+---
+
 ## Project structure
 
 ```

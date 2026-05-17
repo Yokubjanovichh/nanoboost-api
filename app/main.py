@@ -12,6 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.exceptions import AppError
+from app.shared import cache as cache_module
 from app.shared import scheduler as scheduler_module
 
 logger = logging.getLogger("nanoboost.api")
@@ -24,6 +25,7 @@ async def lifespan(_app: FastAPI):
         yield
     finally:
         scheduler_module.shutdown()
+        await cache_module.close_client()
 
 
 # Register image MIME types explicitly. Starlette's FileResponse defers to
@@ -135,7 +137,10 @@ async def unhandled_exception_handler(_: Request, exc: Exception) -> JSONRespons
 
 @app.get("/health", tags=["health"])
 async def health() -> dict[str, str]:
-    return {"status": "ok"}
+    # `redis` reports `ok` / `down` / `disabled`. `down` means REDIS_URL is
+    # set but the broker can't be reached — the API stays up via the cache
+    # BYPASS path, but ops should know.
+    return {"status": "ok", "redis": await cache_module.cache_status()}
 
 
 app.include_router(api_router)

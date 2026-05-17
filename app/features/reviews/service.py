@@ -13,6 +13,7 @@ from app.features.reviews.schemas import (
     ReviewUpdate,
 )
 from app.features.services.repository import ServiceRepository
+from app.shared.cache import invalidate_public_cache
 
 
 class ReviewService:
@@ -41,6 +42,7 @@ class ReviewService:
         )
         await self.repo.add(review)
         await self.db.commit()
+        await invalidate_public_cache("reviews")
         return await self._reload(review.id)
 
     async def get(self, review_id: UUID) -> Review:
@@ -98,18 +100,21 @@ class ReviewService:
             review.is_active = payload.is_active
 
         await self.db.commit()
+        await invalidate_public_cache("reviews")
         return await self._reload(review.id)
 
     async def toggle_active(self, review_id: UUID) -> Review:
         review = await self.get(review_id)
         review.is_active = not review.is_active
         await self.db.commit()
+        await invalidate_public_cache("reviews")
         return await self._reload(review.id)
 
     async def toggle_featured(self, review_id: UUID) -> Review:
         review = await self.get(review_id)
         review.is_featured = not review.is_featured
         await self.db.commit()
+        await invalidate_public_cache("reviews")
         return await self._reload(review.id)
 
     async def soft_delete(self, review_id: UUID) -> None:
@@ -117,6 +122,7 @@ class ReviewService:
         review.is_deleted = True
         review.is_active = False
         await self.db.commit()
+        await invalidate_public_cache("reviews")
 
     async def reorder(self, payload: ReviewReorderRequest) -> int:
         pairs = [(item.id, item.sort_order) for item in payload.items]
@@ -124,6 +130,7 @@ class ReviewService:
         if updated == 0:
             raise NotFoundError("None of the reviews")
         await self.db.commit()
+        await invalidate_public_cache("reviews")
         return updated
 
     async def _reload(self, review_id: UUID) -> Review:

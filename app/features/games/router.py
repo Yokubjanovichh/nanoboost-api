@@ -20,6 +20,7 @@ from app.features.games.schemas import (
 )
 from app.features.games.service import GameService
 from app.features.users.models import User
+from app.shared.cache import cached_response
 from app.shared.pagination import Paginated, PaginationDep, paginate
 
 router = APIRouter(prefix="/games", tags=["games"])
@@ -85,9 +86,17 @@ public_router = APIRouter(prefix="/public/games", tags=["public"])
 
 
 @public_router.get("", response_model=list[PublicGameRead])
-async def list_public_games(db: DbSession) -> list[PublicGameRead]:
-    rows = await GameService(db).list_public()
-    return [
-        PublicGameRead.model_validate(game).model_copy(update={"service_count": count})
-        for game, count in rows
-    ]
+async def list_public_games(db: DbSession):
+    """Returns a `Response` directly so cached requests skip Pydantic
+    re-validation on the hot path. `response_model` stays for OpenAPI."""
+
+    async def _build():
+        rows = await GameService(db).list_public()
+        return [
+            PublicGameRead.model_validate(game)
+            .model_copy(update={"service_count": count})
+            .model_dump(mode="json")
+            for game, count in rows
+        ]
+
+    return await cached_response(key="public:games:v1", ttl=300, build=_build)

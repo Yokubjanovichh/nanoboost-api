@@ -38,6 +38,18 @@ services:
     tmpfs:
       - /var/lib/postgresql/data  # ephemeral — fresh state each `up`
 
+  redis:
+    image: redis:7-alpine
+    container_name: nanoboost-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   api:
     build:
       context: .
@@ -56,6 +68,8 @@ services:
       - uploads_data:/app/uploads
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     command: >
       sh -c "alembic upgrade head &&

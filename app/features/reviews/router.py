@@ -19,6 +19,7 @@ from app.features.reviews.schemas import (
 )
 from app.features.reviews.service import ReviewService
 from app.features.users.models import User
+from app.shared.cache import cached_response
 from app.shared.pagination import Paginated, PaginationDep, paginate
 
 router = APIRouter(prefix="/reviews", tags=["reviews"])
@@ -109,6 +110,14 @@ async def list_public_reviews(
     db: DbSession,
     service_id: Annotated[UUID | None, Query()] = None,
     featured: Annotated[bool | None, Query()] = None,
-) -> list[PublicReviewRead]:
-    reviews = await ReviewService(db).list_public(service_id=service_id, featured=featured)
-    return [PublicReviewRead.model_validate(r) for r in reviews]
+):
+    key = (
+        f"public:reviews:v1:service_id={service_id or ''}"
+        f":featured={'' if featured is None else int(featured)}"
+    )
+
+    async def _build():
+        reviews = await ReviewService(db).list_public(service_id=service_id, featured=featured)
+        return [PublicReviewRead.model_validate(r).model_dump(mode="json") for r in reviews]
+
+    return await cached_response(key=key, ttl=600, build=_build)

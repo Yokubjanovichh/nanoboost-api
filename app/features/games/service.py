@@ -13,6 +13,7 @@ from app.features.games.schemas import (
     GameUpdate,
     ReorderRequest,
 )
+from app.shared.cache import invalidate_public_cache
 
 
 class GameService:
@@ -36,6 +37,7 @@ class GameService:
         await self.repo.add(game)
         await self.db.commit()
         await self.db.refresh(game)
+        await invalidate_public_cache("games")
         return game
 
     async def get(self, game_id: UUID) -> Game:
@@ -84,6 +86,7 @@ class GameService:
 
         await self.db.commit()
         await self.db.refresh(game)
+        await invalidate_public_cache("games")
         return game
 
     async def soft_delete(self, game_id: UUID) -> None:
@@ -91,6 +94,7 @@ class GameService:
         game.is_deleted = True
         game.status = GameStatus.HIDDEN
         await self.db.commit()
+        await invalidate_public_cache("games")
 
     async def reorder(self, payload: ReorderRequest) -> int:
         pairs = [(item.id, item.sort_order) for item in payload.items]
@@ -98,4 +102,5 @@ class GameService:
         if updated == 0:
             raise NotFoundError("None of the games")
         await self.db.commit()
+        await invalidate_public_cache("games")
         return updated

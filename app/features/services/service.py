@@ -16,6 +16,7 @@ from app.features.services.schemas import (
     ServiceOptionUpdate,
     ServiceUpdate,
 )
+from app.shared.cache import invalidate_public_cache
 
 
 def _what_you_get_to_dict(items: list) -> list[dict]:
@@ -70,6 +71,7 @@ class ServiceService:
             )
         await self.repo.add(service)
         await self.db.commit()
+        await invalidate_public_cache("services")
         return await self._reload_with_relations(service.id)
 
     async def get(self, service_id: UUID) -> Service:
@@ -155,18 +157,21 @@ class ServiceService:
             service.is_active = payload.is_active
 
         await self.db.commit()
+        await invalidate_public_cache("services")
         return await self._reload_with_relations(service.id)
 
     async def toggle_active(self, service_id: UUID) -> Service:
         service = await self.get(service_id)
         service.is_active = not service.is_active
         await self.db.commit()
+        await invalidate_public_cache("services")
         return await self._reload_with_relations(service.id)
 
     async def toggle_featured(self, service_id: UUID) -> Service:
         service = await self.get(service_id)
         service.is_featured = not service.is_featured
         await self.db.commit()
+        await invalidate_public_cache("services")
         return await self._reload_with_relations(service.id)
 
     async def soft_delete(self, service_id: UUID) -> None:
@@ -176,6 +181,7 @@ class ServiceService:
         service.is_deleted = True
         service.is_active = False
         await self.db.commit()
+        await invalidate_public_cache("services")
 
     async def reorder(self, payload: ReorderRequest) -> int:
         pairs = [(item.id, item.sort_order) for item in payload.items]
@@ -183,6 +189,7 @@ class ServiceService:
         if updated == 0:
             raise NotFoundError("None of the services")
         await self.db.commit()
+        await invalidate_public_cache("services")
         return updated
 
     async def _reload_with_relations(self, service_id: UUID) -> Service:
@@ -224,6 +231,7 @@ class ServiceOptionService:
         await self.repo.add(option)
         await self.db.commit()
         await self.db.refresh(option)
+        await invalidate_public_cache("services")
         return option
 
     async def update(
@@ -249,6 +257,7 @@ class ServiceOptionService:
 
         await self.db.commit()
         await self.db.refresh(option)
+        await invalidate_public_cache("services")
         return option
 
     async def delete(self, service_id: UUID, option_id: UUID) -> None:
@@ -257,6 +266,7 @@ class ServiceOptionService:
             raise NotFoundError("Option")
         await self.repo.delete(option)
         await self.db.commit()
+        await invalidate_public_cache("services")
 
     async def reorder(self, service_id: UUID, payload: ReorderRequest) -> int:
         await self._ensure_service(service_id)
@@ -265,4 +275,5 @@ class ServiceOptionService:
         if updated == 0:
             raise NotFoundError("None of the options")
         await self.db.commit()
+        await invalidate_public_cache("services")
         return updated

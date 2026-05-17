@@ -24,6 +24,7 @@ from app.features.services.schemas import (
 )
 from app.features.services.service import ServiceOptionService, ServiceService
 from app.features.users.models import User
+from app.shared.cache import cached_response
 from app.shared.pagination import Paginated, PaginationDep, paginate
 
 router = APIRouter(prefix="/services", tags=["services"])
@@ -234,18 +235,37 @@ async def list_public_services(
     featured: Annotated[bool | None, Query()] = None,
     page: Annotated[int, Query(ge=1, le=10000)] = 1,
     page_size: Annotated[int, Query(ge=1, le=100)] = 100,
-) -> list[PublicServiceRead]:
-    services = await ServiceService(db).list_public(
-        game_slug=game, platform=platform, featured=featured
+):
+    # Cache key includes every filter that affects the response. `featured`
+    # is on the wire but defaults to None, so we keep it in the key only
+    # when the caller passed it — empty `featured=` segment otherwise.
+    key = (
+        f"public:services:v1:game={game or ''}"
+        f":platform={platform.value if platform else ''}"
+        f":featured={'' if featured is None else int(featured)}"
+        f":page={page}:size={page_size}"
     )
-    start = (page - 1) * page_size
-    return [PublicServiceRead.model_validate(s) for s in services[start : start + page_size]]
+
+    async def _build():
+        services = await ServiceService(db).list_public(
+            game_slug=game, platform=platform, featured=featured
+        )
+        start = (page - 1) * page_size
+        return [
+            PublicServiceRead.model_validate(s).model_dump(mode="json")
+            for s in services[start : start + page_size]
+        ]
+
+    return await cached_response(key=key, ttl=180, build=_build)
 
 
 @public_router.get("/{slug}", response_model=PublicServiceRead)
 async def get_public_service(
     slug: Annotated[str, Path(pattern=_PUBLIC_SLUG_PATTERN, max_length=150)],
     db: DbSession,
-) -> PublicServiceRead:
-    service = await ServiceService(db).get_public(slug)
-    return PublicServiceRead.model_validate(service)
+):
+    async def _build():
+        service = await ServiceService(db).get_public(slug)
+        return PublicServiceRead.model_validate(service).model_dump(mode="json")
+
+    return await cached_response(key=f"public:services:v1:slug={slug}", ttl=180, build=_build)

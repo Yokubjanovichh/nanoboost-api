@@ -29,7 +29,10 @@ def test_app_imports_without_error():
 async def test_health_returns_200(client):
     response = await client.get("/health")
     assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
+    body = response.json()
+    assert body["status"] == "ok"
+    # Cache health is informational — value depends on REDIS_URL.
+    assert "redis" in body
 
 
 @pytest.mark.asyncio
