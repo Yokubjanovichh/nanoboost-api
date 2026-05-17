@@ -32,6 +32,17 @@ for ext, mime in (
 # so any change produces a new URL. That makes long-lived immutable caching safe.
 _UPLOAD_CACHE_CONTROL = "public, max-age=31536000, immutable"
 
+# Industry-baseline security headers applied to every response. Values picked
+# to match the storefront's Vercel defaults so the API and the public site
+# present a uniform posture to scanners.
+_SECURITY_HEADERS = {
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "geolocation=(), microphone=(), camera=(), payment=()",
+}
+
 
 app = FastAPI(
     title="Nanoboost Admin API",
@@ -64,6 +75,15 @@ async def uploads_cache_headers(request: Request, call_next):
         settings.UPLOADS_URL_PREFIX + "/"
     ):
         response.headers["Cache-Control"] = _UPLOAD_CACHE_CONTROL
+    return response
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    """Stamp baseline security headers on every outgoing response."""
+    response = await call_next(request)
+    for name, value in _SECURITY_HEADERS.items():
+        response.headers[name] = value
     return response
 
 
