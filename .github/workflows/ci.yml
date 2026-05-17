@@ -27,6 +27,14 @@ jobs:
       - name: Install Python
         run: uv python install ${{ env.PYTHON_VERSION }}
 
+      - name: Verify uv.lock is in sync with pyproject.toml
+        # Guards against the failure mode that took prod down on deploy
+        # 2df57132: pyproject.toml got a new dep but uv.lock wasn't
+        # regenerated, so the Docker build's `uv sync --frozen` shipped a
+        # container missing the dependency. Fail CI here instead of finding
+        # out in Railway.
+        run: uv lock --check
+
       - name: Install dependencies
         run: |
           uv venv --python ${{ env.PYTHON_VERSION }} .venv
