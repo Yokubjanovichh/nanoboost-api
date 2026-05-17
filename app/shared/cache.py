@@ -71,10 +71,18 @@ async def get_client() -> redis_async.Redis | None:
 
 
 def set_client_for_testing(client: redis_async.Redis | None) -> None:
-    """Test hook: install a fakeredis (or None to force BYPASS)."""
+    """Test hook: install a fakeredis (or None to force BYPASS).
+
+    Passing `None` always disables the cache for the rest of the test —
+    even when `REDIS_URL` is set (CI's real Redis service). Without this
+    explicit disable, fixtures that intend "no cache" would silently
+    connect to the live broker and serve stale data from prior tests.
+    Use the `fakeredis_client` fixture when a test actually wants cache
+    behaviour.
+    """
     global _client, _disabled
     _client = client
-    _disabled = client is None and not settings.REDIS_URL
+    _disabled = client is None
 
 
 async def close_client() -> None:
