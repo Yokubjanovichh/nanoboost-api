@@ -75,6 +75,11 @@ class Settings(BaseSettings):
     AUTO_CANCEL_PENDING_HOURS: int = 24
     AUTO_CANCEL_INTERVAL_HOURS: int = 1
 
+    # Redis cache for /public/* endpoints. Empty string disables the cache;
+    # endpoints continue to work and emit X-Cache: BYPASS. Railway injects
+    # REDIS_URL automatically when the Redis service is added to the project.
+    REDIS_URL: str = ""
+
     @property
     def is_dev(self) -> bool:
         return self.ENVIRONMENT == "dev"

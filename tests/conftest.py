@@ -46,6 +46,7 @@ from app.db.base import Base  # noqa: E402
 from app.db.session import AsyncSessionLocal, engine, get_db  # noqa: E402
 from app.features.users.models import User  # noqa: E402
 from app.main import app  # noqa: E402
+from app.shared import cache as cache_module  # noqa: E402
 
 IS_SQLITE = engine.url.get_backend_name() == "sqlite"
 
@@ -66,6 +67,31 @@ def pytest_collection_modifyitems(config, items):
 
 
 # --- DB lifecycle -----------------------------------------------------------
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def _fresh_cache():
+    """Tests run cache-free by default. Individual tests opt in with
+    `fakeredis_client` below if they need cache behaviour. Reset state
+    around every test so module-level `_client` / `_disabled` flags from
+    one test don't leak into the next.
+    """
+    cache_module.set_client_for_testing(None)
+    yield
+    cache_module.set_client_for_testing(None)
+
+
+@pytest_asyncio.fixture
+async def fakeredis_client():
+    """In-process fakeredis (async). Use this fixture when a test needs
+    real cache behaviour (HIT/MISS/SCAN) without spinning up a server."""
+    from fakeredis.aioredis import FakeRedis
+
+    client = FakeRedis(decode_responses=True)
+    cache_module.set_client_for_testing(client)
+    yield client
+    cache_module.set_client_for_testing(None)
+    await client.aclose()
 
 
 @pytest_asyncio.fixture(autouse=True)

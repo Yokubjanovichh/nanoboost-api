@@ -64,10 +64,24 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     env:
       DATABASE_URL: postgresql+asyncpg://postgres:testpass@localhost:5432/nanoboost_test
       JWT_SECRET_KEY: ci-test-secret-key-not-for-prod-32+chars-x
       AUTO_CANCEL_PENDING_ENABLED: "false"
+      # Tests inject fakeredis directly, so this URL isn't actually used by
+      # the suite — it's here so cache_status() reports a non-disabled
+      # value on the rare integration test that touches /health without
+      # the fakeredis fixture.
+      REDIS_URL: redis://localhost:6379/0
     steps:
       - uses: actions/checkout@v4
 
