@@ -69,6 +69,12 @@ class Settings(BaseSettings):
     ECOMTRADE24_BASE_URL: str = "https://pay.ecomtrade24.com"
     ECOMTRADE24_DOMAIN: str = "nanoboost.io"
 
+    # Auto-cancel: sweep PENDING orders older than N hours on a fixed interval.
+    # Toggle off in tests / one-off scripts where the scheduler shouldn't run.
+    AUTO_CANCEL_PENDING_ENABLED: bool = True
+    AUTO_CANCEL_PENDING_HOURS: int = 24
+    AUTO_CANCEL_INTERVAL_HOURS: int = 1
+
     @property
     def is_dev(self) -> bool:
         return self.ENVIRONMENT == "dev"

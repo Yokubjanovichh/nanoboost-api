@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from uuid import UUID
 
 from fastapi import BackgroundTasks
+from sqlalchemy import func, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.constants import (
@@ -128,6 +129,38 @@ class OrderService:
                 payload.status,
             )
         return reloaded
+
+    async def cancel_stale_pending(self, *, hours: int = 24) -> int:
+        """Cancel PENDING orders whose created_at is older than `hours`.
+
+        Returns the number of orders cancelled. Idempotent — already-cancelled
+        orders are filtered out by the status predicate, so re-running picks
+        up only the next sweep's worth. Appends a single audit line per row
+        to admin_notes; we don't bother de-duplicating because the row exits
+        the PENDING pool the moment we touch it.
+        """
+        now = datetime.now(UTC)
+        cutoff = now - timedelta(hours=hours)
+        note = f"\n[Auto-cancelled: pending > {hours}h]"
+
+        stmt = (
+            update(Order)
+            .where(
+                Order.status == OrderStatus.PENDING,
+                Order.created_at < cutoff,
+            )
+            .values(
+                status=OrderStatus.CANCELLED,
+                cancelled_at=now,
+                # `func.coalesce(...) + note` becomes `coalesce(...) || '...'`
+                # on Postgres and SQLite, so this is portable across the prod
+                # backend and the in-memory test DB.
+                admin_notes=func.coalesce(Order.admin_notes, "") + note,
+            )
+        )
+        result = await self.db.execute(stmt)
+        await self.db.commit()
+        return result.rowcount or 0
 
     async def stats(self) -> OrderStats:
         raw = await self.repo.stats()
