@@ -32,6 +32,7 @@ class CachedStaticFiles(StaticFiles):
             response.headers["Cache-Control"] = _UPLOAD_CACHE_CONTROL
         return response
 
+
 app = FastAPI(
     title="Nanoboost Admin API",
     version="1.0.0",
