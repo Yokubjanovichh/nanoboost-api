@@ -57,7 +57,7 @@ class GameService:
             limit=limit, offset=offset, status=status, search=search, sort=sort
         )
 
-    async def list_public(self) -> list[Game]:
+    async def list_public(self) -> list[tuple[Game, int]]:
         return await self.repo.list_public()
 
     async def update(self, game_id: UUID, payload: GameUpdate) -> Game:

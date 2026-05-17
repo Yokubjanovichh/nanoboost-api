@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.constants import GameStatus
 from app.features.games.models import Game
+from app.features.services.models import Service
 
 _SORTABLE_FIELDS = {
     "sort_order": Game.sort_order,
@@ -62,15 +63,28 @@ class GameRepository:
         total = (await self.db.execute(count_q)).scalar_one()
         return list(items), total
 
-    async def list_public(self) -> list[Game]:
+    async def list_public(self) -> list[tuple[Game, int]]:
         # Public site shows active + coming_soon (latter rendered disabled).
         # Hidden games are filtered out entirely.
+        #
+        # The service-count join *must* live in the ON clause, not WHERE:
+        # otherwise games with zero matching services collapse out of the
+        # result (LEFT JOIN with a WHERE on the right side acts like an
+        # INNER JOIN). count(Service.id) returns 0 cleanly for unmatched
+        # rows because the right side is NULL.
         q = (
-            select(Game)
+            select(Game, func.count(Service.id).label("service_count"))
+            .outerjoin(
+                Service,
+                (Service.game_id == Game.id)
+                & Service.is_active.is_(True)
+                & Service.is_deleted.is_(False),
+            )
             .where(Game.is_deleted.is_(False), Game.status != GameStatus.HIDDEN)
+            .group_by(Game.id)
             .order_by(asc(Game.sort_order), asc(Game.created_at))
         )
-        return list((await self.db.execute(q)).scalars().all())
+        return [(row[0], row[1]) for row in (await self.db.execute(q)).all()]
 
     async def get_by_id(self, game_id: UUID) -> Game | None:
         q = self._base_query().where(Game.id == game_id)
