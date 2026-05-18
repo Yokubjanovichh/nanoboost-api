@@ -22,17 +22,17 @@ end-to-end coverage.
 from __future__ import annotations
 
 import json
-import logging
 from collections.abc import Awaitable, Callable
 from typing import Any
 
 import redis.asyncio as redis_async
+import structlog
 from fastapi import Response
 from redis.exceptions import RedisError
 
 from app.core.config import settings
 
-logger = logging.getLogger("nanoboost.cache")
+logger = structlog.get_logger("nanoboost.cache")
 
 _client: redis_async.Redis | None = None
 _disabled: bool = False  # sticky: once we know the URL is empty, stop trying
@@ -63,7 +63,7 @@ async def get_client() -> redis_async.Redis | None:
         )
         await _client.ping()
     except (RedisError, OSError) as exc:
-        logger.warning("Redis unavailable, cache disabled: %s", exc)
+        logger.warning("cache_unavailable", error=str(exc))
         _client = None
         _disabled = True
         return None
@@ -105,7 +105,7 @@ async def cache_get(key: str) -> str | None:
     try:
         return await client.get(key)
     except RedisError as exc:
-        logger.warning("cache_get failed for %r: %s", key, exc)
+        logger.warning("cache_get_failed", key=key, error=str(exc))
         return None
 
 
@@ -116,7 +116,7 @@ async def cache_set(key: str, value: str, ttl: int) -> None:
     try:
         await client.set(key, value, ex=ttl)
     except RedisError as exc:
-        logger.warning("cache_set failed for %r: %s", key, exc)
+        logger.warning("cache_set_failed", key=key, error=str(exc))
 
 
 async def cache_delete_pattern(pattern: str) -> int:
@@ -130,7 +130,7 @@ async def cache_delete_pattern(pattern: str) -> int:
             await client.delete(key)
             deleted += 1
     except RedisError as exc:
-        logger.warning("cache_delete_pattern failed for %r: %s", pattern, exc)
+        logger.warning("cache_delete_pattern_failed", pattern=pattern, error=str(exc))
     return deleted
 
 
@@ -185,7 +185,7 @@ async def cached_response(
     try:
         cached = await client.get(key)
     except RedisError as exc:
-        logger.warning("cached_response get failed for %r: %s", key, exc)
+        logger.warning("cached_response_get_failed", key=key, error=str(exc))
         cached = None
 
     if cached is not None:
@@ -200,7 +200,7 @@ async def cached_response(
     try:
         await client.set(key, body, ex=ttl)
     except RedisError as exc:
-        logger.warning("cached_response set failed for %r: %s", key, exc)
+        logger.warning("cached_response_set_failed", key=key, error=str(exc))
     return Response(
         content=body,
         media_type="application/json",
@@ -228,7 +228,7 @@ async def invalidate_public_cache(entity: str) -> int:
     """
     patterns = _INVALIDATION_MAP.get(entity)
     if not patterns:
-        logger.warning("invalidate_public_cache called with unknown entity %r", entity)
+        logger.warning("cache_invalidate_unknown_entity", entity=entity)
         return 0
     total = 0
     for pattern in patterns:

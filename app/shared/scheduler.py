@@ -8,26 +8,29 @@ to coordinate across instances.
 
 from __future__ import annotations
 
-import logging
-
+import structlog
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from app.core.config import settings
 from app.db.session import AsyncSessionLocal
 from app.features.orders.service import OrderService
 
-logger = logging.getLogger("nanoboost.scheduler")
+logger = structlog.get_logger("nanoboost.scheduler")
 
 scheduler = AsyncIOScheduler(timezone="UTC")
 
 
 async def _cancel_stale_pending_orders() -> None:
+    logger.info("scheduler_job_started", job="cancel_stale_pending_orders")
     async with AsyncSessionLocal() as db:
         cancelled = await OrderService(db).cancel_stale_pending(
             hours=settings.AUTO_CANCEL_PENDING_HOURS,
         )
-    if cancelled:
-        logger.info("Auto-cancelled %d stale pending order(s)", cancelled)
+    logger.info(
+        "scheduler_job_completed",
+        job="cancel_stale_pending_orders",
+        cancelled=cancelled,
+    )
 
 
 def configure_jobs() -> None:
@@ -36,7 +39,7 @@ def configure_jobs() -> None:
     that drive lifespan more than once).
     """
     if not settings.AUTO_CANCEL_PENDING_ENABLED:
-        logger.info("AUTO_CANCEL_PENDING_ENABLED is False — skipping job registration")
+        logger.info("scheduler_disabled", reason="AUTO_CANCEL_PENDING_ENABLED=false")
         return
 
     scheduler.add_job(
@@ -49,9 +52,10 @@ def configure_jobs() -> None:
         max_instances=1,
     )
     logger.info(
-        "Scheduled cancel_stale_pending_orders every %dh (cutoff: %dh)",
-        settings.AUTO_CANCEL_INTERVAL_HOURS,
-        settings.AUTO_CANCEL_PENDING_HOURS,
+        "scheduler_job_registered",
+        job="cancel_stale_pending_orders",
+        interval_hours=settings.AUTO_CANCEL_INTERVAL_HOURS,
+        cutoff_hours=settings.AUTO_CANCEL_PENDING_HOURS,
     )
 
 
@@ -59,10 +63,10 @@ def start() -> None:
     configure_jobs()
     if scheduler.get_jobs():
         scheduler.start()
-        logger.info("Scheduler started")
+        logger.info("scheduler_started")
 
 
 def shutdown() -> None:
     if scheduler.running:
         scheduler.shutdown(wait=False)
-        logger.info("Scheduler stopped")
+        logger.info("scheduler_stopped")

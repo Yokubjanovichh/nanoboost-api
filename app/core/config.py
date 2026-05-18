@@ -80,6 +80,13 @@ class Settings(BaseSettings):
     # REDIS_URL automatically when the Redis service is added to the project.
     REDIS_URL: str = ""
 
+    # Structured logging. `json` emits one machine-parseable line per record
+    # for Railway / Datadog / Loki; `pretty` is the colored console renderer
+    # for local dev. `auto` resolves to json in prod, pretty otherwise — see
+    # app.shared.logging.configure_logging.
+    LOG_FORMAT: Literal["json", "pretty", "auto"] = "auto"
+    LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
+
     @property
     def is_dev(self) -> bool:
         return self.ENVIRONMENT == "dev"

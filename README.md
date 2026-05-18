@@ -175,6 +175,72 @@ end-to-end coverage.
 
 ---
 
+## Observability
+
+Every request produces structured logs with a correlation `request_id`,
+the resolved `user_id` (or `null` for anonymous traffic), HTTP method,
+path, status, and duration. Production emits one JSON line per record
+(Railway / Datadog / Loki ingest these directly); local dev defaults
+to a colored console renderer for readability.
+
+### Settings
+
+| Env | Default | Meaning |
+|---|---|---|
+| `LOG_FORMAT` | `auto` | `json`, `pretty`, or `auto` (json in prod, pretty otherwise) |
+| `LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL` |
+
+### Request lifecycle events
+
+Every HTTP request produces two records — one at receipt, one at
+completion — with the same `request_id`:
+
+```json
+{"event":"request_started","request_id":"7c9f...","method":"GET","path":"/api/v1/public/services","client_ip":"1.2.3.4","user_id":null,"level":"info","timestamp":"2026-05-18T...Z"}
+{"event":"request_completed","request_id":"7c9f...","method":"GET","path":"/api/v1/public/services","status":200,"duration_ms":12,"client_ip":"1.2.3.4","user_id":null,"level":"info","timestamp":"2026-05-18T...Z"}
+```
+
+5xx responses log at `error` level so Railway alert rules can pin on
+`level:error` without false positives from 4xx.
+
+### X-Request-ID
+
+Responses carry an `X-Request-ID` header (the same value as the log
+record's `request_id`). Clients can pass one in to thread a trace —
+the middleware preserves a caller-supplied value rather than minting
+a new one.
+
+### Sensitive data
+
+The middleware never logs request bodies. Sensitive request headers
+(`Authorization`, `Cookie`, `X-Webhook-Signature`,
+`X-EcomTrade24-Signature`, `X-Api-Key`) are redacted via
+`app.shared.middleware.request_logging.redact_headers` for any
+code path that does want to log headers.
+
+Auth events emit the email (for failed-login alerting) and `user_id`,
+never passwords or hashes.
+
+### Domain events worth grepping
+
+| Event | Where | When |
+|---|---|---|
+| `auth_login_success` / `auth_login_failed` | `app.features.auth.service` | every login attempt |
+| `request_started` / `request_completed` | middleware | every HTTP request |
+| `request_failed` | middleware | unhandled exception in the stack |
+| `scheduler_started` / `scheduler_job_completed` | scheduler | startup + each sweep |
+| `cache_unavailable` / `cache_*_failed` | cache module | broker degradation |
+
+### Local example
+
+```bash
+LOG_FORMAT=json LOG_LEVEL=INFO uvicorn app.main:app
+# or for dev:
+LOG_FORMAT=pretty uvicorn app.main:app --reload
+```
+
+---
+
 ## Project structure
 
 ```

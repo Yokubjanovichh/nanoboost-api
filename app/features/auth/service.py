@@ -1,5 +1,6 @@
 from uuid import UUID
 
+import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -16,6 +17,8 @@ from app.features.users.models import User
 from app.features.users.repository import UserRepository
 from app.features.users.schemas import UserRead
 
+_auth_logger = structlog.get_logger("nanoboost.auth")
+
 
 class AuthService:
     def __init__(self, db: AsyncSession) -> None:
@@ -25,9 +28,18 @@ class AuthService:
     async def authenticate(self, email: str, password: str) -> User:
         user = await self.repo.get_by_email(email)
         if user is None or not verify_password(password, user.password_hash):
+            # Email logged for grep-by-email failed-login alerts.
+            # No password / hash material leaves this function.
+            _auth_logger.info("auth_login_failed", email=email, reason="bad_credentials")
             raise InvalidCredentialsError()
         if not user.is_active:
+            _auth_logger.info(
+                "auth_login_failed", email=email, reason="user_inactive", user_id=str(user.id)
+            )
             raise InactiveUserError()
+        _auth_logger.info(
+            "auth_login_success", email=email, user_id=str(user.id), role=user.role.value
+        )
         return user
 
     def build_token_response(self, user: User) -> TokenResponse:
