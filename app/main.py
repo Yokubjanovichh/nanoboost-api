@@ -1,4 +1,3 @@
-import logging
 import mimetypes
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -14,8 +13,13 @@ from app.core.config import settings
 from app.core.exceptions import AppError
 from app.shared import cache as cache_module
 from app.shared import scheduler as scheduler_module
+from app.shared.logging import configure_logging, get_logger
+from app.shared.middleware.request_logging import RequestLoggingMiddleware
 
-logger = logging.getLogger("nanoboost.api")
+# Configure structured logging before anything else creates a logger so
+# stdlib + structlog share the same handler from the first record.
+configure_logging()
+logger = get_logger("nanoboost.api")
 
 
 @asynccontextmanager
@@ -74,6 +78,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Bind request_id + start/end logs around every request. Registered last
+# so it wraps the security + uploads middleware too — every response
+# (including 5xx from inner middleware) gets an X-Request-ID header.
+app.add_middleware(RequestLoggingMiddleware)
 
 
 @app.middleware("http")
