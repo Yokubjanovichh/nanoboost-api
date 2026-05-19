@@ -1,0 +1,291 @@
+# serializer version: 1
+# name: test_public_contact_post_contract
+  dict({
+    'status': 'str',
+  })
+# ---
+# name: test_public_games_contract
+  list([
+    dict({
+      'description': 'str',
+      'id': 'str',
+      'image_desktop_url': 'None',
+      'image_mobile_url': 'None',
+      'name': 'str',
+      'service_count': 'int',
+      'slug': 'str',
+      'status': 'str',
+    }),
+  ])
+# ---
+# name: test_public_order_post_contract
+  dict({
+    'checkout_url': 'None',
+    'created_at': 'str',
+    'display_currency': 'str',
+    'final_total_usd': 'float',
+    'order_number': 'str',
+    'status': 'str',
+  })
+# ---
+# name: test_public_reviews_contract
+  list([
+    dict({
+      'author_name': 'str',
+      'created_at': 'str',
+      'id': 'str',
+      'is_featured': 'bool',
+      'rating': 'int',
+      'service': 'None',
+      'text': 'str',
+    }),
+  ])
+# ---
+# name: test_public_service_detail_contract
+  dict({
+    'description': list([
+      'str',
+    ]),
+    'game': dict({
+      'name': 'str',
+      'slug': 'str',
+    }),
+    'id': 'str',
+    'image_alt': 'str',
+    'image_desktop_url': 'str',
+    'image_mobile_url': 'str',
+    'is_featured': 'bool',
+    'options': list([
+      dict({
+        'id': 'str',
+        'is_default': 'bool',
+        'label': 'str',
+        'price_eur': 'float',
+        'price_usd': 'float',
+        'sort_order': 'int',
+      }),
+    ]),
+    'platform': 'str',
+    'sections': list([
+      dict({
+        'texts': list([
+          'str',
+        ]),
+        'title': 'str',
+      }),
+    ]),
+    'seo_description': 'str',
+    'seo_title': 'str',
+    'slug': 'str',
+    'title': 'str',
+    'what_you_get': list([
+      dict({
+        'items': list([
+          'str',
+        ]),
+        'lead': 'str',
+        'title': 'str',
+      }),
+    ]),
+  })
+# ---
+# name: test_public_services_contract
+  list([
+    dict({
+      'description': list([
+        'str',
+      ]),
+      'game': dict({
+        'name': 'str',
+        'slug': 'str',
+      }),
+      'id': 'str',
+      'image_alt': 'str',
+      'image_desktop_url': 'str',
+      'image_mobile_url': 'str',
+      'is_featured': 'bool',
+      'options': list([
+        dict({
+          'id': 'str',
+          'is_default': 'bool',
+          'label': 'str',
+          'price_eur': 'float',
+          'price_usd': 'float',
+          'sort_order': 'int',
+        }),
+      ]),
+      'platform': 'str',
+      'sections': list([
+        dict({
+          'texts': list([
+            'str',
+          ]),
+          'title': 'str',
+        }),
+      ]),
+      'seo_description': 'str',
+      'seo_title': 'str',
+      'slug': 'str',
+      'title': 'str',
+      'what_you_get': list([
+        dict({
+          'items': list([
+            'str',
+          ]),
+          'lead': 'str',
+          'title': 'str',
+        }),
+      ]),
+    }),
+  ])
+# ---
+# name: test_public_services_game_filter_contract
+  list([
+    dict({
+      'description': list([
+        'str',
+      ]),
+      'game': dict({
+        'name': 'str',
+        'slug': 'str',
+      }),
+      'id': 'str',
+      'image_alt': 'str',
+      'image_desktop_url': 'str',
+      'image_mobile_url': 'str',
+      'is_featured': 'bool',
+      'options': list([
+        dict({
+          'id': 'str',
+          'is_default': 'bool',
+          'label': 'str',
+          'price_eur': 'float',
+          'price_usd': 'float',
+          'sort_order': 'int',
+        }),
+      ]),
+      'platform': 'str',
+      'sections': list([
+        dict({
+          'texts': list([
+            'str',
+          ]),
+          'title': 'str',
+        }),
+      ]),
+      'seo_description': 'str',
+      'seo_title': 'str',
+      'slug': 'str',
+      'title': 'str',
+      'what_you_get': list([
+        dict({
+          'items': list([
+            'str',
+          ]),
+          'lead': 'str',
+          'title': 'str',
+        }),
+      ]),
+    }),
+  ])
+# ---
+# name: test_public_services_platform_filter_contract
+  list([
+    dict({
+      'description': list([
+        'str',
+      ]),
+      'game': dict({
+        'name': 'str',
+        'slug': 'str',
+      }),
+      'id': 'str',
+      'image_alt': 'str',
+      'image_desktop_url': 'str',
+      'image_mobile_url': 'str',
+      'is_featured': 'bool',
+      'options': list([
+        dict({
+          'id': 'str',
+          'is_default': 'bool',
+          'label': 'str',
+          'price_eur': 'float',
+          'price_usd': 'float',
+          'sort_order': 'int',
+        }),
+      ]),
+      'platform': 'str',
+      'sections': list([
+        dict({
+          'texts': list([
+            'str',
+          ]),
+          'title': 'str',
+        }),
+      ]),
+      'seo_description': 'str',
+      'seo_title': 'str',
+      'slug': 'str',
+      'title': 'str',
+      'what_you_get': list([
+        dict({
+          'items': list([
+            'str',
+          ]),
+          'lead': 'str',
+          'title': 'str',
+        }),
+      ]),
+    }),
+  ])
+# ---
+# name: test_public_services_search_contract
+  list([
+    dict({
+      'description': list([
+        'str',
+      ]),
+      'game': dict({
+        'name': 'str',
+        'slug': 'str',
+      }),
+      'id': 'str',
+      'image_alt': 'str',
+      'image_desktop_url': 'str',
+      'image_mobile_url': 'str',
+      'is_featured': 'bool',
+      'options': list([
+        dict({
+          'id': 'str',
+          'is_default': 'bool',
+          'label': 'str',
+          'price_eur': 'float',
+          'price_usd': 'float',
+          'sort_order': 'int',
+        }),
+      ]),
+      'platform': 'str',
+      'sections': list([
+        dict({
+          'texts': list([
+            'str',
+          ]),
+          'title': 'str',
+        }),
+      ]),
+      'seo_description': 'str',
+      'seo_title': 'str',
+      'slug': 'str',
+      'title': 'str',
+      'what_you_get': list([
+        dict({
+          'items': list([
+            'str',
+          ]),
+          'lead': 'str',
+          'title': 'str',
+        }),
+      ]),
+    }),
+  ])
+# ---

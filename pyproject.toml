@@ -34,6 +34,7 @@ dev = [
     "aiosqlite>=0.20.0",
     "ruff>=0.7.0",
     "fakeredis>=2.26",
+    "syrupy>=4.6",
 ]
 
 [build-system]
@@ -63,4 +64,5 @@ testpaths = ["tests"]
 pythonpath = ["."]
 markers = [
     "integration: requires a real Postgres backend (skipped under SQLite)",
+    "contract: API contract snapshot test — fails on response-shape drift",
 ]
