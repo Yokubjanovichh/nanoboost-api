@@ -14,6 +14,7 @@ from app.core.exceptions import AppError
 from app.shared import cache as cache_module
 from app.shared import scheduler as scheduler_module
 from app.shared.logging import configure_logging, get_logger
+from app.shared.middleware.browser_cache import BrowserCacheMiddleware
 from app.shared.middleware.request_logging import RequestLoggingMiddleware
 
 # Configure structured logging before anything else creates a logger so
@@ -83,6 +84,11 @@ app.add_middleware(
 # so it wraps the security + uploads middleware too — every response
 # (including 5xx from inner middleware) gets an X-Request-ID header.
 app.add_middleware(RequestLoggingMiddleware)
+
+# Stamp browser Cache-Control on public GETs (and `no-store` on public
+# mutations). Registered after the security/uploads middleware so the
+# header lands on the final outgoing response.
+app.add_middleware(BrowserCacheMiddleware)
 
 
 @app.middleware("http")
