@@ -7,6 +7,20 @@ Stack: **FastAPI + SQLAlchemy 2 (async) + PostgreSQL 16 + Alembic + Pydantic v2 
 
 ---
 
+## API Contract
+
+Single source of truth for routes, response shapes, error formats,
+and the breaking-change protocol:
+[`docs/api-contract.md`](docs/api-contract.md).
+
+Live machine-readable schema: [`docs/openapi-snapshot.json`](docs/openapi-snapshot.json)
+(regenerate after route changes: `python -m scripts.dump_openapi_snapshot`).
+
+CI fails any PR that changes the schema without refreshing the
+snapshot — contract drift surfaces in review, not in production.
+
+---
+
 ## Requirements
 
 - Docker & Docker Compose

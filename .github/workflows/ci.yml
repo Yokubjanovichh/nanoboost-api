@@ -46,6 +46,29 @@ jobs:
       - name: Ruff format
         run: .venv/bin/ruff format --check .
 
+      - name: Verify OpenAPI snapshot is up to date
+        # Regenerates the schema from the live app and diffs it against
+        # the committed docs/openapi-snapshot.json. Any route or
+        # response_model change that wasn't reflected in the snapshot
+        # fails CI — Manager + FE see breaking changes in PR review
+        # instead of finding out in production.
+        env:
+          # Required by Settings; the value doesn't matter for snapshot
+          # generation (no tokens are minted).
+          JWT_SECRET_KEY: snapshot-only-dummy-jwt-secret-key-32+chars
+        run: |
+          .venv/bin/python -m scripts.dump_openapi_snapshot
+          mv docs/openapi-snapshot.json /tmp/openapi-current.json
+          git checkout -- docs/openapi-snapshot.json
+          if ! diff -q docs/openapi-snapshot.json /tmp/openapi-current.json >/dev/null; then
+            echo "::error::OpenAPI schema drifted. Regenerate the snapshot:"
+            echo "    python -m scripts.dump_openapi_snapshot"
+            echo "    git add docs/openapi-snapshot.json"
+            echo "--- diff (committed -> live) ---"
+            diff docs/openapi-snapshot.json /tmp/openapi-current.json || true
+            exit 1
+          fi
+
   # ---------------------------------------------------------------------
   test:
     needs: lint
