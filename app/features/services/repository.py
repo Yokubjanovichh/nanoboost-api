@@ -123,7 +123,11 @@ class ServiceRepository:
             select(Service)
             .options(selectinload(Service.options), selectinload(Service.game))
             .where(Service.is_deleted.is_(False), Service.is_active.is_(True))
-            .order_by(asc(Service.sort_order), asc(Service.created_at))
+            # sort_order is the admin's manual override (lower = earlier).
+            # When sort_order ties, the *newer* service wins — admin marking a
+            # service Featured today should land at the top of "Hot Right Now"
+            # without having to renumber the rest of the catalogue.
+            .order_by(asc(Service.sort_order), desc(Service.created_at))
         )
         if game_slug is not None:
             q = q.join(Game, Game.id == Service.game_id).where(
