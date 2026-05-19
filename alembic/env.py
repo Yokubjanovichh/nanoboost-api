@@ -11,6 +11,7 @@ from app.db.base import Base
 
 # Import models so Alembic sees them in metadata
 from app.features.clients import models as clients_models  # noqa: F401
+from app.features.contact import models as contact_models  # noqa: F401
 from app.features.games import models as games_models  # noqa: F401
 from app.features.orders import models as orders_models  # noqa: F401
 from app.features.payments import models as payments_models  # noqa: F401

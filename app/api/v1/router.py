@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from app.features.auth.router import router as auth_router
 from app.features.clients.router import router as clients_router
+from app.features.contact.router import public_router as contact_public_router
 from app.features.dashboard.router import router as dashboard_router
 from app.features.games.router import public_router as games_public_router
 from app.features.games.router import router as games_router
@@ -29,4 +30,5 @@ api_router.include_router(games_public_router)
 api_router.include_router(services_public_router)
 api_router.include_router(reviews_public_router)
 api_router.include_router(orders_public_router)
+api_router.include_router(contact_public_router)
 api_router.include_router(payments_router)
