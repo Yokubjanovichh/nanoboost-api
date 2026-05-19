@@ -21,7 +21,9 @@ end-to-end coverage.
 
 from __future__ import annotations
 
+import asyncio
 import json
+import uuid
 from collections.abc import Awaitable, Callable
 from typing import Any
 
@@ -36,6 +38,25 @@ logger = structlog.get_logger("nanoboost.cache")
 
 _client: redis_async.Redis | None = None
 _disabled: bool = False  # sticky: once we know the URL is empty, stop trying
+
+# Atomic compare-and-delete: only release the lock if we still own it.
+# `redis-py` strings get auto-encoded; the comparison is exact-bytes so
+# stale owners (TTL-expired then re-acquired by a fresh request) can't
+# accidentally delete the new lock.
+_RELEASE_LOCK_SCRIPT = """
+if redis.call("get", KEYS[1]) == ARGV[1] then
+    return redis.call("del", KEYS[1])
+else
+    return 0
+end
+"""
+
+# Stampede defaults. Lock TTL > the slowest compute() we expect; the
+# poll window is short so an unblocked waiter returns quickly. Both
+# tunable per-call.
+_DEFAULT_LOCK_TTL_SECONDS = 5
+_DEFAULT_MAX_WAIT_MS = 500
+_POLL_INTERVAL_MS = 50
 
 
 async def get_client() -> redis_async.Redis | None:
@@ -156,6 +177,155 @@ async def cache_status() -> str:
     return "ok" if await cache_health() else "down"
 
 
+# --- Stampede-protected lookup --------------------------------------------
+
+
+async def _release_lock(client: redis_async.Redis, lock_key: str, owner: str) -> None:
+    """Delete-if-still-mine.
+
+    Real Redis runs the Lua script atomically, so the read-then-del
+    can't race against another acquirer of the same lock. Fakeredis
+    (used in tests) doesn't speak EVAL — we fall back to a non-atomic
+    GET + ownership check + DEL. The lock TTL bounds the race window:
+    the worst case under the fallback is that we delete a lock another
+    request acquired in the millisecond between GET and DEL, and that
+    request's compute is then unprotected for the rest of its run —
+    still correct, just unlucky on stampede protection.
+    """
+    try:
+        await client.eval(_RELEASE_LOCK_SCRIPT, 1, lock_key, owner)
+        return
+    except RedisError:
+        # Either real Redis disconnected mid-call or fakeredis doesn't
+        # implement EVAL — try the safer non-atomic path before giving up.
+        pass
+
+    try:
+        current = await client.get(lock_key)
+        if current == owner:
+            await client.delete(lock_key)
+    except RedisError as exc:
+        logger.warning("cache_lock_release_failed", key=lock_key, error=str(exc))
+
+
+async def _cached_string_with_lock(
+    *,
+    client: redis_async.Redis,
+    key: str,
+    ttl: int,
+    build: Callable[[], Awaitable[Any]],
+    lock_ttl: int = _DEFAULT_LOCK_TTL_SECONDS,
+    max_wait_ms: int = _DEFAULT_MAX_WAIT_MS,
+) -> tuple[str, str]:
+    """Stampede-protected MISS path. Returns (json_body, x_cache_label).
+
+    Three branches:
+      1. Lock acquired → compute, store, MISS.
+      2. Lock held by another request → poll the cache for up to
+         max_wait_ms; if it appears, return as HIT (the other request
+         did the work for us).
+      3. Lock-wait timeout → fall through to compute() ourselves to
+         avoid deadlock. Logged so the threshold can be tuned.
+    """
+    lock_key = f"lock:{key}"
+    owner = uuid.uuid4().hex[:12]
+
+    try:
+        acquired = await client.set(lock_key, owner, nx=True, ex=lock_ttl)
+    except RedisError as exc:
+        logger.warning("cache_lock_set_failed", key=lock_key, error=str(exc))
+        payload = await build()
+        return json.dumps(payload, default=str), "BYPASS"
+
+    if acquired:
+        logger.debug("cache_lock_acquired", key=key, owner=owner)
+        try:
+            payload = await build()
+            body = json.dumps(payload, default=str)
+            try:
+                await client.set(key, body, ex=ttl)
+            except RedisError as exc:
+                logger.warning("cache_set_failed", key=key, error=str(exc))
+            return body, "MISS"
+        finally:
+            await _release_lock(client, lock_key, owner)
+
+    # Lock held by someone else — poll for their result.
+    waited_ms = 0
+    while waited_ms < max_wait_ms:
+        await asyncio.sleep(_POLL_INTERVAL_MS / 1000)
+        waited_ms += _POLL_INTERVAL_MS
+        try:
+            cached = await client.get(key)
+        except RedisError:
+            break
+        if cached is not None:
+            logger.debug("cache_lock_wait_hit", key=key, waited_ms=waited_ms)
+            return cached, "HIT"
+
+    # The other request crashed, ran past `lock_ttl`, or its result is
+    # taking longer than we're willing to wait. Compute ourselves and
+    # store — first writer wins on the set.
+    logger.warning("cache_lock_timeout_fallback", key=key, waited_ms=waited_ms)
+    payload = await build()
+    body = json.dumps(payload, default=str)
+    try:
+        await client.set(key, body, ex=ttl)
+    except RedisError as exc:
+        logger.warning("cache_set_failed", key=key, error=str(exc))
+    return body, "MISS"
+
+
+async def cache_get_or_compute(
+    *,
+    key: str,
+    compute: Callable[[], Awaitable[Any]],
+    ttl: int,
+    lock_ttl: int = _DEFAULT_LOCK_TTL_SECONDS,
+    max_wait_ms: int = _DEFAULT_MAX_WAIT_MS,
+) -> Any:
+    """Generic cache-aside with stampede protection.
+
+    Callers get back a Python value (the same shape `compute` returns).
+    Use this when the value flows through Python code; use
+    `cached_response` for HTTP handlers that want the `X-Cache` header
+    on the wire.
+
+    Concurrent MISS-path callers block on a Redis lock so only one of
+    them actually runs `compute`. Redis-down short-circuits to a direct
+    `compute()` call — losing stampede protection is preferable to
+    refusing legitimate traffic.
+    """
+    client = await get_client()
+    if client is None:
+        return await compute()
+
+    try:
+        cached = await client.get(key)
+    except RedisError as exc:
+        logger.warning("cache_get_failed", key=key, error=str(exc))
+        return await compute()
+    if cached is not None:
+        # Stored as a JSON string by the writer; decode for the caller.
+        try:
+            return json.loads(cached)
+        except (TypeError, json.JSONDecodeError):
+            return cached
+
+    body, _label = await _cached_string_with_lock(
+        client=client,
+        key=key,
+        ttl=ttl,
+        build=compute,
+        lock_ttl=lock_ttl,
+        max_wait_ms=max_wait_ms,
+    )
+    try:
+        return json.loads(body)
+    except (TypeError, json.JSONDecodeError):
+        return body
+
+
 # --- Endpoint helper -------------------------------------------------------
 
 
@@ -165,12 +335,16 @@ async def cached_response(
     ttl: int,
     build: Callable[[], Awaitable[Any]],
 ) -> Response:
-    """Cache-aware JSON response.
+    """Cache-aware JSON response with stampede protection.
 
-    `build` must return a JSON-serialisable payload (dict or list — both
-    fine for FastAPI's docs since we declare `response_model` on the
-    handler). On cache HIT the cached bytes are returned verbatim, so
-    the response_model is documentation only on that path.
+    `build` must return a JSON-serialisable payload. On HIT the cached
+    bytes are returned verbatim — no Pydantic re-validation on the hot
+    path, and `response_model` on the handler stays as docs.
+
+    Concurrent MISS calls share a Redis lock so only one of them hits
+    the DB; the rest see the freshly-written value via a short poll
+    (X-Cache: HIT). Redis-down degrades to a direct build and
+    X-Cache: BYPASS — same posture as before the lock was introduced.
     """
     client = await get_client()
     if client is None:
@@ -195,16 +369,16 @@ async def cached_response(
             headers={"X-Cache": "HIT"},
         )
 
-    payload = await build()
-    body = json.dumps(payload, default=str)
-    try:
-        await client.set(key, body, ex=ttl)
-    except RedisError as exc:
-        logger.warning("cached_response_set_failed", key=key, error=str(exc))
+    body, label = await _cached_string_with_lock(
+        client=client,
+        key=key,
+        ttl=ttl,
+        build=build,
+    )
     return Response(
         content=body,
         media_type="application/json",
-        headers={"X-Cache": "MISS"},
+        headers={"X-Cache": label},
     )
 
 

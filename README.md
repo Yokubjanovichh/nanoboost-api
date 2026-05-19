@@ -198,6 +198,25 @@ Every cached endpoint returns one of:
 - `MISS` — computed and stored
 - `BYPASS` — cache unavailable, served from DB (no store)
 
+### Stampede protection
+
+When a cached entry expires, concurrent requests don't all stampede
+the DB. The cache layer takes a Redis lock around the recompute:
+
+- First request wins the lock, runs the query, fills the cache.
+- Other concurrent requests briefly poll the cache (up to ~500ms);
+  when the value lands, they return `X-Cache: HIT`.
+- If the lock holder takes too long or crashes, waiters fall back to
+  computing themselves so nothing deadlocks.
+
+The lock release is ownership-checked (Lua `compare-and-delete`) so
+a TTL-expired lock can't be deleted by its previous owner. Redis-down
+short-circuits to a direct compute — losing stampede protection is
+preferable to refusing traffic.
+
+`cache_get_or_compute(...)` exposes the same pattern for any future
+code path that wants Python-level cache-aside semantics.
+
 ### Health
 
 `GET /health` returns `{"status": "ok", "redis": "ok|down|disabled"}`.
