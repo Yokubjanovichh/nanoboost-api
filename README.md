@@ -83,8 +83,38 @@ tests/
 ├── conftest.py            Shared fixtures (DB session, test client, users, sample data)
 ├── unit/                  Pure-function tests (security, payment strategy, transitions)
 ├── integration/           HTTP → middleware → router → DB endpoint tests
+├── contracts/             Runtime response-shape snapshots (see "Contract testing" below)
 └── e2e/                   Startup + smoke (incident-coverage tests live here)
 ```
+
+### Contract testing
+
+`tests/contracts/` snapshots the **runtime shape** of every public
+endpoint. The OpenAPI snapshot (`docs/openapi-snapshot.json`) catches
+static-schema drift; contract tests catch what the schema can't see —
+`response_model_exclude`, computed fields, JSON-serialisation quirks.
+
+Adding/removing/retyping a Pydantic field fails the matching test
+with a one-line diff:
+
+```
+E   AssertionError: assert [+ received] == [- snapshot]
+E       ...
+E   -     'service_count': 'int',
+E       ...
+```
+
+When the change is **intentional**, regenerate and commit — the diff
+becomes part of the PR for Manager + clients to review:
+
+```bash
+uv run pytest tests/contracts/ --snapshot-update
+git add tests/contracts/__snapshots__/
+```
+
+Snapshots live in `tests/contracts/__snapshots__/*.ambr` — plain text
+[syrupy](https://github.com/syrupy-project/syrupy) format that reads
+cleanly in PR diffs.
 
 ### Run locally (fast — SQLite default)
 

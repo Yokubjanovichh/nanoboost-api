@@ -257,17 +257,33 @@ storefront, admin panel, or webhook caller to update:
 
 ### Drift guard
 
-CI runs the snapshot guard on every PR. Anything that changes
-`/openapi.json` without regenerating `docs/openapi-snapshot.json`
-fails the build with the exact diff. Manager + reviewers see
-contract changes in PR review every time — not weeks later when a
-client breaks in production.
+Two layers, run on every PR:
+
+1. **Schema** — CI regenerates the OpenAPI snapshot from the live app
+   and diffs against the committed `docs/openapi-snapshot.json`. Any
+   route or `response_model` change without a snapshot refresh fails
+   the build with the exact diff.
+2. **Runtime** — Contract tests in `tests/contracts/` verify response
+   shape on every CI run. They snapshot the key+type skeleton of each
+   public endpoint, so removing a field, retyping one, or adding one
+   surfaces as a failing test with a clean diff. Catches behaviour
+   the schema can't see (`response_model_exclude`, computed fields).
+
+   ```
+   E   -     'service_count': 'int',
+   ```
+
+Manager + reviewers see contract changes in PR review every time —
+not weeks later when a client breaks in production.
 
 To regenerate locally:
 
 ```bash
-python -m scripts.dump_openapi_snapshot
+python -m scripts.dump_openapi_snapshot       # OpenAPI schema
 git add docs/openapi-snapshot.json
+
+uv run pytest tests/contracts/ --snapshot-update    # runtime shapes
+git add tests/contracts/__snapshots__/
 ```
 
 ---
