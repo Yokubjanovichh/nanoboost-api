@@ -323,6 +323,57 @@
         "title": "ClientWithStats",
         "type": "object"
       },
+      "ContactSubmissionCreate": {
+        "description": "Wire payload accepted on POST /api/v1/public/contact.\n\nTrim-on-input via `field_validator(mode=\"before\")` so a user who pads\ntheir handle with whitespace doesn't get bounced by `min_length`.",
+        "properties": {
+          "email": {
+            "anyOf": [
+              {
+                "format": "email",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "handle": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Handle",
+            "type": "string"
+          },
+          "message": {
+            "maxLength": 2000,
+            "minLength": 10,
+            "title": "Message",
+            "type": "string"
+          },
+          "preferred_contact": {
+            "$ref": "#/components/schemas/PreferredContact"
+          }
+        },
+        "required": [
+          "preferred_contact",
+          "handle",
+          "message"
+        ],
+        "title": "ContactSubmissionCreate",
+        "type": "object"
+      },
+      "ContactSubmissionResponse": {
+        "description": "PII-free response \u2014 the frontend only needs the success signal.",
+        "properties": {
+          "status": {
+            "default": "ok",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "title": "ContactSubmissionResponse",
+        "type": "object"
+      },
       "DashboardOverview": {
         "properties": {
           "average_order_value_usd": {
@@ -1437,6 +1488,16 @@
           "pc"
         ],
         "title": "Platform",
+        "type": "string"
+      },
+      "PreferredContact": {
+        "enum": [
+          "discord",
+          "telegram",
+          "whatsapp",
+          "email"
+        ],
+        "title": "PreferredContact",
         "type": "string"
       },
       "PublicGameRead": {
@@ -4991,6 +5052,47 @@
         "summary": "Change Order Status",
         "tags": [
           "orders"
+        ]
+      }
+    },
+    "/api/v1/public/contact": {
+      "post": {
+        "operationId": "submit_contact_api_v1_public_contact_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactSubmissionCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactSubmissionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submit Contact",
+        "tags": [
+          "public"
         ]
       }
     },

@@ -56,6 +56,7 @@ the order-status flow trusts `order_number` as the sole credential
 | `GET` | `/api/v1/public/reviews` | `service_id`, `featured` | none | 600s |
 | `POST` | `/api/v1/public/orders` | — | none | — |
 | `GET` | `/api/v1/public/orders/{order_number}/status` | — | `order_number` is the credential | — |
+| `POST` | `/api/v1/public/contact` | — | none (rate-limited: 5/min/IP) | — |
 | `POST` | `/api/v1/payments/webhooks/ecomtrade24` | — | `X-EcomTrade24-Signature` (HMAC-SHA256) | — |
 
 ### Query-param constraints
@@ -166,6 +167,17 @@ type PublicOrderStatusResponse = {
   final_total_usd: number;
   display_currency: "USD" | "EUR";
 };
+
+type ContactSubmissionCreate = {                 // POST /api/v1/public/contact
+  preferred_contact: "discord" | "telegram" | "whatsapp" | "email";
+  handle: string;                                // 1..200 chars, trimmed
+  email?: string | null;                         // required if preferred_contact === "email"
+  message: string;                               // 10..2000 chars, trimmed
+};
+
+type ContactSubmissionResponse = {
+  status: "ok";                                  // PII-free success signal
+};
 ```
 
 ---
@@ -180,6 +192,7 @@ type PublicOrderStatusResponse = {
 | `404` | `{"detail": "<message>"}` | Resource missing OR **route not registered** (check the URL prefix) |
 | `409` | `{"detail": "<message>", "message": "<details>"}` | Conflict (duplicate slug, FK violation) |
 | `422` | `{"detail": [{"loc": [...], "msg": "...", "type": "..."}]}` | Pydantic validation failure (any query/path/body field) |
+| `429` | `{"detail": "<message>"}` | Rate-limited (e.g. `/public/contact` accepts 5/min/IP). Retry after the window resets. |
 | `5xx` | `{"detail": "Internal server error"}` | Generic — full traceback in server logs, correlate via `X-Request-ID` |
 
 Pydantic `422` is **always** returned for malformed input — clients
