@@ -82,6 +82,8 @@ async def create_public_order(
         order_number=order.order_number,
         status=order.status,
         final_total_usd=float(order.final_total_usd),
+        final_total_eur=float(order.final_total_eur) if order.final_total_eur is not None else None,
+        discount_amount_usd=float(order.discount_amount_usd),
         display_currency=order.display_currency,
         created_at=order.created_at,
         checkout_url=checkout_url,
@@ -108,10 +110,16 @@ async def get_public_order_status(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Order not found",
         )
+    # Prefer payment_status_updated_at (last gateway nudge) over the row-wide
+    # updated_at — the latter ticks on every admin edit and would spuriously
+    # invalidate the polling client's "no change" check.
+    last_updated_at = order.payment_status_updated_at or order.updated_at
     return PublicOrderStatusResponse(
         order_number=order.order_number,
         status=order.status,
         paid_at=order.paid_at,
         final_total_usd=float(order.final_total_usd),
+        final_total_eur=float(order.final_total_eur) if order.final_total_eur is not None else None,
         display_currency=order.display_currency,
+        last_updated_at=last_updated_at,
     )

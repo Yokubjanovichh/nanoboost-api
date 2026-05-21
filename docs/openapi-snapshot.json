@@ -1712,8 +1712,30 @@
             "title": "Created At",
             "type": "string"
           },
+          "discount_amount_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Discount Amount Usd"
+          },
           "display_currency": {
             "$ref": "#/components/schemas/DisplayCurrency"
+          },
+          "final_total_eur": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Total Eur"
           },
           "final_total_usd": {
             "title": "Final Total Usd",
@@ -1743,9 +1765,25 @@
           "display_currency": {
             "$ref": "#/components/schemas/DisplayCurrency"
           },
+          "final_total_eur": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Total Eur"
+          },
           "final_total_usd": {
             "title": "Final Total Usd",
             "type": "number"
+          },
+          "last_updated_at": {
+            "format": "date-time",
+            "title": "Last Updated At",
+            "type": "string"
           },
           "order_number": {
             "title": "Order Number",
@@ -1771,7 +1809,8 @@
           "order_number",
           "status",
           "final_total_usd",
-          "display_currency"
+          "display_currency",
+          "last_updated_at"
         ],
         "title": "PublicOrderStatusResponse",
         "type": "object"

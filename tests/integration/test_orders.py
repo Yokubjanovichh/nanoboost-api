@@ -88,6 +88,7 @@ async def test_status_returns_pii_free_payload(client_with_db, db_session):
         display_currency=DisplayCurrency.USD,
         subtotal_usd=Decimal("10"),
         final_total_usd=Decimal("10"),
+        final_total_eur=Decimal("9"),
         paid_at=datetime.now(UTC),
     )
     db_session.add(order)
@@ -102,6 +103,87 @@ async def test_status_returns_pii_free_payload(client_with_db, db_session):
     assert "email" not in body
     assert "telegram" not in body
     assert "client" not in body
+    # FAZA 4 fields: EUR snapshot + polling-friendly timestamp.
+    assert body["final_total_eur"] == 9.0
+    assert body["last_updated_at"] is not None
+
+
+# --- EUR aggregate + discount (FAZA 4) -------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_create_persists_eur_snapshot_and_discount(client_with_db, db_session):
+    """USDT path gets 5% off, populates final_total_eur from per-item EUR
+    prices, and surfaces both in the POST response."""
+    from sqlalchemy import select
+
+    from app.core.constants import GameStatus, Platform
+    from app.features.games.models import Game
+    from app.features.services.models import Service, ServiceOption
+
+    game = Game(
+        slug="gta-v",
+        name="GTA V",
+        sort_order=0,
+        status=GameStatus.ACTIVE,
+        is_deleted=False,
+    )
+    db_session.add(game)
+    await db_session.flush()
+    svc = Service(
+        game_id=game.id,
+        slug="gta-cash",
+        title="GTA Cash",
+        platform=Platform.PS,
+        description=["x"],
+        what_you_get=[],
+        sections=[],
+        is_active=True,
+        is_deleted=False,
+        sort_order=0,
+    )
+    db_session.add(svc)
+    await db_session.flush()
+    option = ServiceOption(
+        service_id=svc.id,
+        label="100m",
+        price_usd=Decimal("100.00"),
+        price_eur=Decimal("90.00"),
+        is_default=True,
+        sort_order=0,
+    )
+    db_session.add(option)
+    await db_session.commit()
+
+    res = await client_with_db.post(
+        "/api/v1/public/orders",
+        json={
+            "email": "eur@test.io",
+            "payment_method": "usdt_trc20",
+            "display_currency": "EUR",
+            "items": [
+                {
+                    "service_id": str(svc.id),
+                    "option_id": str(option.id),
+                    "quantity": 2,
+                }
+            ],
+        },
+    )
+    assert res.status_code == 201, res.text
+    body = res.json()
+    # subtotal_usd = 200, USDT 5% off → discount 10, final 190
+    assert body["final_total_usd"] == 190.0
+    assert body["discount_amount_usd"] == 10.0
+    # subtotal_eur = 180, 5% off → final_eur 171
+    assert body["final_total_eur"] == 171.0
+    assert body["display_currency"] == "EUR"
+
+    # Snapshot persisted to the row, not computed on read.
+    stored = (
+        await db_session.execute(select(Order).where(Order.order_number == body["order_number"]))
+    ).scalar_one()
+    assert stored.final_total_eur == Decimal("171.00")
 
 
 # --- Auto-cancel sweep ------------------------------------------------------

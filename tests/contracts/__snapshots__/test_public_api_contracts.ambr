@@ -22,7 +22,9 @@
   dict({
     'checkout_url': 'None',
     'created_at': 'str',
+    'discount_amount_usd': 'float',
     'display_currency': 'str',
+    'final_total_eur': 'float',
     'final_total_usd': 'float',
     'order_number': 'str',
     'status': 'str',

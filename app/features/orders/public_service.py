@@ -74,6 +74,7 @@ class PublicOrderService:
         )
 
         subtotal_usd = Decimal("0")
+        subtotal_eur = Decimal("0")
         items_data: list[OrderItem] = []
         for item in payload.items:
             _, option, snapshot = await self._resolve_item(item)
@@ -81,6 +82,7 @@ class PublicOrderService:
             line_total_usd = (option.price_usd * qty).quantize(Decimal("0.01"))
             line_total_eur = (option.price_eur * qty).quantize(Decimal("0.01"))
             subtotal_usd += line_total_usd
+            subtotal_eur += line_total_eur
 
             items_data.append(
                 OrderItem(
@@ -97,15 +99,20 @@ class PublicOrderService:
             )
 
         subtotal_usd = subtotal_usd.quantize(Decimal("0.01"))
+        subtotal_eur = subtotal_eur.quantize(Decimal("0.01"))
 
         if payload.payment_method == PaymentMethod.USDT_TRC20:
             discount_percent = USDT_DISCOUNT_PERCENT
         else:
             discount_percent = 0
-        discount_amount = (subtotal_usd * Decimal(discount_percent) / Decimal("100")).quantize(
-            Decimal("0.01")
-        )
+        discount_factor = Decimal(discount_percent) / Decimal("100")
+        discount_amount = (subtotal_usd * discount_factor).quantize(Decimal("0.01"))
+        # Apply the same percentage to EUR so the FE-visible totals stay
+        # consistent across currencies. Quantize independently — rounding
+        # USD then converting via a rate would drift on small orders.
+        discount_amount_eur = (subtotal_eur * discount_factor).quantize(Decimal("0.01"))
         final_total = (subtotal_usd - discount_amount).quantize(Decimal("0.01"))
+        final_total_eur = (subtotal_eur - discount_amount_eur).quantize(Decimal("0.01"))
 
         order_number = await self.repo.reserve_next_order_number()
 
@@ -119,6 +126,7 @@ class PublicOrderService:
             discount_amount_usd=discount_amount,
             discount_percent=discount_percent,
             final_total_usd=final_total,
+            final_total_eur=final_total_eur,
             comment=payload.comment,
         )
         for item_obj in items_data:
