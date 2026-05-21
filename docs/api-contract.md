@@ -154,7 +154,9 @@ type Review = {
 type PublicOrderResponse = {
   order_number: string;
   status: "pending" | "paid" | "in_progress" | "completed" | "cancelled" | "refunded";
-  final_total_usd: number;
+  final_total_usd: number;                     // always present, server-computed
+  final_total_eur: number | null;              // EUR snapshot at order creation
+  discount_amount_usd: number | null;          // 5% for USDT_TRC20, 0 otherwise
   display_currency: "USD" | "EUR";
   created_at: string;
   checkout_url: string | null;                 // present for hosted-checkout providers
@@ -165,7 +167,9 @@ type PublicOrderStatusResponse = {
   status: PublicOrderResponse["status"];
   paid_at: string | null;
   final_total_usd: number;
+  final_total_eur: number | null;
   display_currency: "USD" | "EUR";
+  last_updated_at: string;                     // ISO-8601, see "Polling" below
 };
 
 type ContactSubmissionCreate = {                 // POST /api/v1/public/contact
@@ -179,6 +183,30 @@ type ContactSubmissionResponse = {
   status: "ok";                                  // PII-free success signal
 };
 ```
+
+---
+
+## 4.1. Order status polling contract
+
+The payment-success page polls `GET /api/v1/public/orders/{order_number}/status`
+until the order leaves `pending` (i.e. webhook landed) or the budget runs out.
+
+| Knob | Value | Why |
+|---|---|---|
+| Poll interval | **5 seconds** | Tight enough that the success page feels responsive without hammering the API |
+| Max attempts | **36** | 5 s × 36 = **180 s** total budget — covers the long tail of provider webhook delivery (P99 < 90 s for EcomTrade24) |
+| Stop condition | `status !== "pending"` | Any terminal state (`paid`, `cancelled`, …) → show the matching UI |
+| Timeout fallback | After attempt 36 | Show "still processing" UI + manual refresh CTA + support contact |
+
+`last_updated_at` lets the client detect "nothing changed since last
+poll" cheaply — compare against the previous response, skip re-rendering
+unchanged sections. It sources from `payment_status_updated_at` when a
+gateway has nudged the order, otherwise from `updated_at`.
+
+The endpoint is **not rate-limited** server-side at this scale; if abuse
+becomes a problem, the Cloudflare layer ahead of FastAPI is where we'd
+add a per-`order_number` cap. Don't bypass the agreed interval — that's
+a load contract, not a hard ceiling.
 
 ---
 

@@ -75,6 +75,10 @@ class Order(Base, TimestampMixin):
     )
     discount_percent: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     final_total_usd: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    # EUR snapshot at order creation — frozen alongside the per-item EUR
+    # prices on OrderItem. Nullable for backward compat with rows created
+    # before migration 0011; new orders always populate it.
+    final_total_eur: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
 
     comment: Mapped[str | None] = mapped_column(Text, nullable=True)
     admin_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
