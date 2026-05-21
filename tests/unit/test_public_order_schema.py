@@ -19,10 +19,42 @@ def _make_payload(**overrides):
         "email": "buyer@example.com",
         "payment_method": "card_ecomtrade24",
         "display_currency": "USD",
-        "items": [{"service_id": str(uuid4()), "option_id": str(uuid4()), "quantity": 1}],
+        "items": [{"service_slug": "gta-cash", "option_id": str(uuid4()), "qty": 1}],
     }
     base.update(overrides)
     return base
+
+
+# --- Item shape: slug + qty + extra='forbid' -----------------------------
+
+
+def test_item_requires_service_slug_not_service_id():
+    """The public surface identifies the catalogue row by slug only —
+    UUIDs are internal. Sending service_id (the old contract) must 422,
+    not silently coerce."""
+    bad = _make_payload(items=[{"service_id": str(uuid4()), "option_id": str(uuid4()), "qty": 1}])
+    with pytest.raises(ValidationError):
+        PublicOrderCreate(**bad)
+
+
+def test_item_requires_qty_not_quantity():
+    """Manager-pinned field name. Unknown extra fields (incl. the old
+    `quantity`) reject with 422 so silent default-fallback bugs can't
+    return — that's why orders used to land with qty=1."""
+    bad = _make_payload(items=[{"service_slug": "x", "option_id": str(uuid4()), "quantity": 5}])
+    with pytest.raises(ValidationError):
+        PublicOrderCreate(**bad)
+
+
+def test_item_qty_bounds():
+    with pytest.raises(ValidationError):
+        PublicOrderCreate(
+            **_make_payload(items=[{"service_slug": "x", "option_id": str(uuid4()), "qty": 0}])
+        )
+    with pytest.raises(ValidationError):
+        PublicOrderCreate(
+            **_make_payload(items=[{"service_slug": "x", "option_id": str(uuid4()), "qty": 101}])
+        )
 
 
 # --- WhatsApp validator ---------------------------------------------------

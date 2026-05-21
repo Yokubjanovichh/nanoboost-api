@@ -1667,6 +1667,7 @@
         "type": "object"
       },
       "PublicOrderItemCreate": {
+        "additionalProperties": false,
         "properties": {
           "option_id": {
             "description": "Selected service option",
@@ -1674,22 +1675,23 @@
             "title": "Option Id",
             "type": "string"
           },
-          "quantity": {
-            "default": 1,
+          "qty": {
             "maximum": 100.0,
             "minimum": 1.0,
-            "title": "Quantity",
+            "title": "Qty",
             "type": "integer"
           },
-          "service_id": {
-            "format": "uuid",
-            "title": "Service Id",
+          "service_slug": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Service Slug",
             "type": "string"
           }
         },
         "required": [
-          "service_id",
-          "option_id"
+          "service_slug",
+          "option_id",
+          "qty"
         ],
         "title": "PublicOrderItemCreate",
         "type": "object"

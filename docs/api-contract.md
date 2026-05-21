@@ -151,6 +151,14 @@ type Review = {
   created_at: string;                          // ISO-8601
 };
 
+type PublicOrderItemCreate = {                   // POST /api/v1/public/orders → items[]
+  service_slug: string;                          // URL-friendly, NOT the UUID
+  option_id: string;                             // UUID — option lookup is by PK
+  qty: number;                                   // 1..100, required (no default)
+  // extra='forbid' — unknown fields (e.g. legacy `service_id` / `quantity`)
+  // reject with 422 instead of being silently dropped.
+};
+
 type PublicOrderResponse = {
   order_number: string;
   status: "pending" | "paid" | "in_progress" | "completed" | "cancelled" | "refunded";

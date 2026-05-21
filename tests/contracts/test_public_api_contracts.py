@@ -188,9 +188,9 @@ async def test_public_order_post_contract(client_with_db, contract_service, snap
             "display_currency": "USD",
             "items": [
                 {
-                    "service_id": str(service.id),
+                    "service_slug": service.slug,
                     "option_id": str(option.id),
-                    "quantity": 1,
+                    "qty": 1,
                 }
             ],
         },

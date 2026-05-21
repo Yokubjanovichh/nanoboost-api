@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from app.core.constants import DisplayCurrency, OrderStatus, PaymentMethod
 
@@ -14,9 +14,20 @@ _WHATSAPP_RE = re.compile(r"^\+?[0-9\s\-]{7,50}$")
 
 
 class PublicOrderItemCreate(BaseModel):
-    service_id: UUID
+    # Public surface — we identify the catalogue row by its URL-friendly slug,
+    # never by UUID. The slug is what the FE already routes on and what the
+    # admin curates; leaking primary keys would be both ugly and a footgun if
+    # we ever change the PK strategy.
+    service_slug: str = Field(..., min_length=1, max_length=128)
     option_id: Annotated[UUID, Field(description="Selected service option")]
-    quantity: int = Field(default=1, ge=1, le=100)
+    qty: int = Field(..., ge=1, le=100)
+
+    # Reject unknown fields outright. Previously `extra='ignore'` (Pydantic
+    # default) meant the FE could send `qty` when we expected `quantity` and
+    # Pydantic silently dropped it — every order ended up with the schema
+    # default. A 422 here is the right signal: the contract is wrong, not
+    # the data.
+    model_config = ConfigDict(extra="forbid")
 
 
 class PublicOrderCreate(BaseModel):
