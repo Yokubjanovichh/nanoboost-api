@@ -87,6 +87,13 @@ class Order(Base, TimestampMixin):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     refunded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Customer-driven signal for manual-payment flows (PayPal / USDT TRC20):
+    # set when the buyer clicks "I have paid" on the success page, before
+    # the admin verifies and flips status → PAID. Stays NULL for
+    # hosted-checkout providers, which set `paid_at` directly from webhook.
+    payment_claimed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     # Payment provider integration (provider-agnostic — set by gateway adapter)
     payment_provider: Mapped[str | None] = mapped_column(String(50), nullable=True)
