@@ -7,7 +7,7 @@ from fastapi import BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.constants import OrderStatus, PaymentMethod
-from app.core.exceptions import ValidationFailureError
+from app.core.exceptions import NotFoundError, ValidationFailureError
 from app.features.clients.repository import ClientRepository
 from app.features.games.repository import GameRepository
 from app.features.orders.models import Order, OrderItem
@@ -37,14 +37,18 @@ class PublicOrderService:
         self.notifier = notifier or get_order_notifier()
 
     async def _resolve_item(self, payload: PublicOrderItemCreate) -> tuple[Any, Any, dict]:
-        service = await self.services.get_by_id(payload.service_id)
-        if service is None or service.is_deleted or not service.is_active:
-            raise ValidationFailureError(f"Service {payload.service_id} is not available")
+        # Slug, not UUID — see PublicOrderItemCreate. `get_by_slug` already
+        # filters soft-deleted rows; we still need the explicit `is_active`
+        # check because admins use that flag to hide a service from the
+        # public surface without deleting it.
+        service = await self.services.get_by_slug(payload.service_slug)
+        if service is None or not service.is_active:
+            raise NotFoundError(f"Service '{payload.service_slug}'")
 
         option = await self.options.get_by_id(payload.option_id, service_id=service.id)
         if option is None:
             raise ValidationFailureError(
-                f"Option {payload.option_id} does not belong to service {service.id}"
+                f"Option {payload.option_id} does not belong to service '{payload.service_slug}'"
             )
 
         game = await self.games.get_by_id(service.game_id)
@@ -77,8 +81,8 @@ class PublicOrderService:
         subtotal_eur = Decimal("0")
         items_data: list[OrderItem] = []
         for item in payload.items:
-            _, option, snapshot = await self._resolve_item(item)
-            qty = Decimal(item.quantity)
+            service, option, snapshot = await self._resolve_item(item)
+            qty = Decimal(item.qty)
             line_total_usd = (option.price_usd * qty).quantize(Decimal("0.01"))
             line_total_eur = (option.price_eur * qty).quantize(Decimal("0.01"))
             subtotal_usd += line_total_usd
@@ -86,11 +90,11 @@ class PublicOrderService:
 
             items_data.append(
                 OrderItem(
-                    service_id=item.service_id,
+                    service_id=service.id,
                     option_id=item.option_id,
                     service_snapshot=snapshot,
                     option_label=option.label,
-                    quantity=item.quantity,
+                    quantity=item.qty,
                     unit_price_usd=option.price_usd,
                     unit_price_eur=option.price_eur,
                     total_price_usd=line_total_usd,

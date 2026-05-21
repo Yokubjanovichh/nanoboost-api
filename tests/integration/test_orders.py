@@ -37,9 +37,9 @@ async def test_create_rejects_bad_email(client_with_db):
             "payment_method": "card_ecomtrade24",
             "items": [
                 {
-                    "service_id": "00000000-0000-0000-0000-000000000000",
+                    "service_slug": "some-service",
                     "option_id": "00000000-0000-0000-0000-000000000000",
-                    "quantity": 1,
+                    "qty": 1,
                 }
             ],
         },
@@ -56,9 +56,9 @@ async def test_create_rejects_invalid_payment_method(client_with_db):
             "payment_method": "bitcoin",  # not in PaymentMethod enum
             "items": [
                 {
-                    "service_id": "00000000-0000-0000-0000-000000000000",
+                    "service_slug": "some-service",
                     "option_id": "00000000-0000-0000-0000-000000000000",
-                    "quantity": 1,
+                    "qty": 1,
                 }
             ],
         },
@@ -106,6 +106,52 @@ async def test_status_returns_pii_free_payload(client_with_db, db_session):
     # FAZA 4 fields: EUR snapshot + polling-friendly timestamp.
     assert body["final_total_eur"] == 9.0
     assert body["last_updated_at"] is not None
+
+
+# --- Slug-based item contract (HOTFIX) -------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_create_rejects_unknown_service_slug_with_404(client_with_db):
+    """Unknown slug → 404 (NotFoundError), not 422. The slug isn't a
+    schema violation — it's a missing resource."""
+    res = await client_with_db.post(
+        "/api/v1/public/orders",
+        json={
+            "email": "buyer@example.com",
+            "payment_method": "card_ecomtrade24",
+            "items": [
+                {
+                    "service_slug": "does-not-exist",
+                    "option_id": "00000000-0000-0000-0000-000000000000",
+                    "qty": 1,
+                }
+            ],
+        },
+    )
+    assert res.status_code == 404
+    assert "does-not-exist" in res.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_create_rejects_empty_service_slug_with_422(client_with_db):
+    """Empty slug fails at the schema layer (min_length=1) before the
+    DB lookup. Pydantic 422, not 404."""
+    res = await client_with_db.post(
+        "/api/v1/public/orders",
+        json={
+            "email": "buyer@example.com",
+            "payment_method": "card_ecomtrade24",
+            "items": [
+                {
+                    "service_slug": "",
+                    "option_id": "00000000-0000-0000-0000-000000000000",
+                    "qty": 1,
+                }
+            ],
+        },
+    )
+    assert res.status_code == 422
 
 
 # --- EUR aggregate + discount (FAZA 4) -------------------------------------
@@ -163,9 +209,9 @@ async def test_create_persists_eur_snapshot_and_discount(client_with_db, db_sess
             "display_currency": "EUR",
             "items": [
                 {
-                    "service_id": str(svc.id),
+                    "service_slug": svc.slug,
                     "option_id": str(option.id),
-                    "quantity": 2,
+                    "qty": 2,
                 }
             ],
         },
