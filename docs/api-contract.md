@@ -56,6 +56,7 @@ the order-status flow trusts `order_number` as the sole credential
 | `GET` | `/api/v1/public/reviews` | `service_id`, `featured` | none | 600s |
 | `POST` | `/api/v1/public/orders` | — | none | — |
 | `GET` | `/api/v1/public/orders/{order_number}/status` | — | `order_number` is the credential | — |
+| `POST` | `/api/v1/public/orders/{order_number}/claim-payment` | — | `order_number` is the credential | — |
 | `POST` | `/api/v1/public/contact` | — | none (rate-limited: 5/min/IP) | — |
 | `POST` | `/api/v1/payments/webhooks/ecomtrade24` | — | `X-EcomTrade24-Signature` (HMAC-SHA256) | — |
 
@@ -170,6 +171,12 @@ type PublicOrderResponse = {
   checkout_url: string | null;                 // present for hosted-checkout providers
 };
 
+type PaymentClaimResponse = {                    // POST .../claim-payment
+  order_number: string;
+  status: PublicOrderResponse["status"];          // always "pending" on first claim
+  payment_claimed_at: string | null;              // ISO-8601, null if claim wasn't filed
+};
+
 type PublicOrderStatusResponse = {
   order_number: string;
   status: PublicOrderResponse["status"];
@@ -191,6 +198,41 @@ type ContactSubmissionResponse = {
   status: "ok";                                  // PII-free success signal
 };
 ```
+
+---
+
+## 4.0. Manual-payment claim flow
+
+Hosted-checkout providers (e.g. EcomTrade24) update order status via
+webhook — the storefront just polls `/status` and shows the result.
+PayPal and USDT (TRC20) are **manual**: the buyer pays into our
+wallet / PayPal outside the API. The success page asks them to confirm
+with a button that hits:
+
+```
+POST /api/v1/public/orders/{order_number}/claim-payment
+```
+
+Body: empty. Response: [`PaymentClaimResponse`](#4-response-models-typescript-shapes).
+
+**Semantics**
+- Sets `payment_claimed_at = now()` on the order.
+- Status stays `pending`. Only admin verification (from the admin panel)
+  flips it to `paid` and sets `paid_at`.
+- Fires a Telegram alert to the admin so they can verify the wallet /
+  PayPal balance.
+- **Idempotent**: a replayed call (offline blip, double-click, FE retry)
+  returns the original `payment_claimed_at` and does **not** re-notify.
+
+**Errors**
+- `400` — order's `payment_method` isn't manual (e.g. `card_ecomtrade24`).
+  Hosted-checkout providers must not flow through this endpoint, since
+  the webhook handles the same transition with provider signature.
+- `404` — order_number does not exist.
+
+After a successful claim, the storefront returns to the polling loop
+described in §4.1 — the admin's manual verification surfaces as
+`status: "paid"` on the next `GET /status` call.
 
 ---
 

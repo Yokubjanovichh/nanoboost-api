@@ -3,18 +3,27 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, status
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
+from app.core.constants import OrderStatus, PaymentMethod
 from app.core.dependencies import DbSession
 from app.core.exceptions import InvalidPaymentError, PaymentProviderError
 from app.features.orders.models import Order
 from app.features.orders.public_schemas import (
+    PaymentClaimResponse,
     PublicOrderCreate,
     PublicOrderResponse,
     PublicOrderStatusResponse,
 )
 from app.features.orders.public_service import PublicOrderService
+from app.shared.notifications import get_order_notifier
 from app.shared.payments import get_payment_provider
+
+# Methods where the buyer pushes money to our wallet/PayPal outside the
+# API. The hosted-checkout providers (e.g. EcomTrade24) don't go through
+# this endpoint — their webhook flips status → PAID directly.
+_MANUAL_PAYMENT_METHODS = frozenset({PaymentMethod.PAYPAL, PaymentMethod.USDT_TRC20})
 
 logger = logging.getLogger("nanoboost.public_orders")
 
@@ -87,6 +96,77 @@ async def create_public_order(
         display_currency=order.display_currency,
         created_at=order.created_at,
         checkout_url=checkout_url,
+    )
+
+
+@public_router.post(
+    "/{order_number}/claim-payment",
+    response_model=PaymentClaimResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def claim_payment(
+    order_number: str,
+    db: DbSession,
+    background_tasks: BackgroundTasks,
+) -> PaymentClaimResponse:
+    """Customer signals "I have paid" for a manual-payment order.
+
+    Sets `payment_claimed_at` and pings the admin via Telegram so they
+    can verify the wallet/PayPal balance and flip status → PAID.
+
+    Idempotent — replaying the call returns the original timestamp and
+    skips the notification. Only PENDING orders accept new claims;
+    terminal-state orders return the current state unchanged.
+
+    Public surface, no auth — `order_number` is the credential, same
+    trust posture as the polling endpoint.
+    """
+    order = (
+        await db.execute(
+            select(Order)
+            .options(selectinload(Order.client))
+            .where(Order.order_number == order_number)
+        )
+    ).scalar_one_or_none()
+    if order is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Order not found",
+        )
+
+    if order.payment_method not in _MANUAL_PAYMENT_METHODS:
+        # Hosted-checkout providers handle this via webhook. Surfacing
+        # the buyer-side claim here would race the webhook and confuse
+        # admins.
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="claim-payment is only available for PayPal / USDT orders",
+        )
+
+    # Idempotency: already-claimed or terminal-state → return current
+    # state without re-notifying. We also key off `payment_claimed_at`
+    # specifically — status alone doesn't tell us whether the alert
+    # already fired (admin could have flipped → PAID without a claim
+    # ever being filed).
+    if order.payment_claimed_at is not None or order.status != OrderStatus.PENDING:
+        return PaymentClaimResponse(
+            order_number=order.order_number,
+            status=order.status,
+            payment_claimed_at=order.payment_claimed_at,
+        )
+
+    now = datetime.now(UTC)
+    order.payment_claimed_at = now
+    # Status stays PENDING — admin verification is the gate to PAID.
+    await db.commit()
+    await db.refresh(order, ["payment_claimed_at"])
+
+    background_tasks.add_task(get_order_notifier().notify_payment_claim, order)
+
+    return PaymentClaimResponse(
+        order_number=order.order_number,
+        status=order.status,
+        payment_claimed_at=order.payment_claimed_at,
     )
 
 

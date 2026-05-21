@@ -1462,6 +1462,36 @@
         "title": "Paginated[UserRead]",
         "type": "object"
       },
+      "PaymentClaimResponse": {
+        "description": "Returned by POST /public/orders/{number}/claim-payment.\n\nIdempotent: if the claim was already filed, the original\n`payment_claimed_at` is returned and no new Telegram alert is sent.\nStatus stays `pending` \u2014 only the admin's manual verification\nadvances it to `paid`.",
+        "properties": {
+          "order_number": {
+            "title": "Order Number",
+            "type": "string"
+          },
+          "payment_claimed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Claimed At"
+          },
+          "status": {
+            "$ref": "#/components/schemas/OrderStatus"
+          }
+        },
+        "required": [
+          "order_number",
+          "status"
+        ],
+        "title": "PaymentClaimResponse",
+        "type": "object"
+      },
       "PaymentMethod": {
         "enum": [
           "paypal",
@@ -5199,6 +5229,49 @@
           }
         },
         "summary": "Create Public Order",
+        "tags": [
+          "public"
+        ]
+      }
+    },
+    "/api/v1/public/orders/{order_number}/claim-payment": {
+      "post": {
+        "description": "Customer signals \"I have paid\" for a manual-payment order.\n\nSets `payment_claimed_at` and pings the admin via Telegram so they\ncan verify the wallet/PayPal balance and flip status \u2192 PAID.\n\nIdempotent \u2014 replaying the call returns the original timestamp and\nskips the notification. Only PENDING orders accept new claims;\nterminal-state orders return the current state unchanged.\n\nPublic surface, no auth \u2014 `order_number` is the credential, same\ntrust posture as the polling endpoint.",
+        "operationId": "claim_payment_api_v1_public_orders__order_number__claim_payment_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "order_number",
+            "required": true,
+            "schema": {
+              "title": "Order Number",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentClaimResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Claim Payment",
         "tags": [
           "public"
         ]

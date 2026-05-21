@@ -76,6 +76,20 @@ class PublicOrderResponse(BaseModel):
     checkout_url: str | None = None
 
 
+class PaymentClaimResponse(BaseModel):
+    """Returned by POST /public/orders/{number}/claim-payment.
+
+    Idempotent: if the claim was already filed, the original
+    `payment_claimed_at` is returned and no new Telegram alert is sent.
+    Status stays `pending` — only the admin's manual verification
+    advances it to `paid`.
+    """
+
+    order_number: str
+    status: OrderStatus
+    payment_claimed_at: datetime | None = None
+
+
 class PublicOrderStatusResponse(BaseModel):
     """Polled by the public payment-success page. Intentionally PII-free —
     anyone with the order_number can read this, same trust level as a

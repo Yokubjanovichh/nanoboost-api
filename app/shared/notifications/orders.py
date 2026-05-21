@@ -78,6 +78,23 @@ class OrderNotifier:
                 getattr(order, "order_number", "<unknown>"),
             )
 
+    async def notify_payment_claim(self, order: Order) -> None:
+        """Customer clicked "I have paid" on a PayPal / USDT order.
+
+        Telegram-only — the admin verifies the wallet/PayPal balance and
+        marks the order PAID from the admin panel. Email channel is
+        intentionally skipped: this is a low-latency operator nudge, not
+        a customer-facing receipt.
+        """
+        try:
+            tg_body = self._format_telegram_payment_claim(order)
+            await self.telegram.send(subject="", body=tg_body)
+        except Exception:
+            logger.exception(
+                "notify_payment_claim failed for order %s",
+                getattr(order, "order_number", "<unknown>"),
+            )
+
     async def notify_status_change(
         self,
         order: Order,
@@ -144,6 +161,40 @@ class OrderNotifier:
         if order.comment:
             body_lines += ["", f"📝 Комментарий: {_md_safe(order.comment)}"]
         return "\n".join(body_lines)
+
+    def _format_telegram_payment_claim(self, order: Order) -> str:
+        client = order.client
+        method_label = PAYMENT_LABEL.get(order.payment_method, str(order.payment_method))
+        # Show the customer-chosen currency total. USD is canonical; EUR
+        # is the snapshot from order creation (NULL on pre-migration-0011
+        # rows, but those orders predate this endpoint).
+        if order.display_currency.value == "EUR" and order.final_total_eur is not None:
+            amount = _fmt_money(order.final_total_eur, currency="€")
+        else:
+            amount = _fmt_money(order.final_total_usd)
+        claimed_at = order.payment_claimed_at or datetime.now(UTC)
+        lines = [
+            "🔔 *ПОДТВЕРЖДЕНИЕ ОПЛАТЫ — нужна проверка*",
+            "",
+            f"🔢 Заказ: *{order.order_number}*",
+            f"💳 Метод: {method_label}",
+            f"💰 Сумма: *{amount}*",
+            "",
+            f"📧 Email: {_md_safe(client.email)}",
+        ]
+        if client.discord:
+            lines.append(f"💬 Discord: {_md_safe(client.discord)}")
+        if client.telegram:
+            lines.append(f"✈️ Telegram: {_md_safe(client.telegram)}")
+        if client.whatsapp:
+            lines.append(f"📱 WhatsApp: {_md_safe(client.whatsapp)}")
+        lines += [
+            "",
+            f"⏰ Заявлено: {_fmt_dt(claimed_at)}",
+            "",
+            f"⚠️ Проверьте поступление в {method_label} и отметьте заказ как ОПЛАЧЕН в админке.",
+        ]
+        return "\n".join(lines)
 
     def _format_telegram_status_change(
         self,
