@@ -4,6 +4,8 @@ from app.features.auth.router import router as auth_router
 from app.features.clients.router import router as clients_router
 from app.features.contact.router import public_router as contact_public_router
 from app.features.dashboard.router import router as dashboard_router
+from app.features.faqs.router import public_router as faqs_public_router
+from app.features.faqs.router import router as faqs_admin_router
 from app.features.games.router import public_router as games_public_router
 from app.features.games.router import router as games_router
 from app.features.orders.public_router import public_router as orders_public_router
@@ -32,3 +34,5 @@ api_router.include_router(reviews_public_router)
 api_router.include_router(orders_public_router)
 api_router.include_router(contact_public_router)
 api_router.include_router(payments_router)
+api_router.include_router(faqs_admin_router)
+api_router.include_router(faqs_public_router)

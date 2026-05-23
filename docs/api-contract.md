@@ -58,6 +58,7 @@ the order-status flow trusts `order_number` as the sole credential
 | `GET` | `/api/v1/public/orders/{order_number}/status` | — | `order_number` is the credential | — |
 | `POST` | `/api/v1/public/orders/{order_number}/claim-payment` | — | `order_number` is the credential | — |
 | `POST` | `/api/v1/public/contact` | — | none (rate-limited: 5/min/IP) | — |
+| `GET`  | `/api/v1/public/games/{game_slug}/faqs` | — | none | — |
 | `POST` | `/api/v1/payments/webhooks/ecomtrade24` | — | `X-EcomTrade24-Signature` (HMAC-SHA256) | — |
 
 ### Query-param constraints
@@ -88,6 +89,8 @@ from `POST /api/v1/auth/login`.
 | `/api/v1/services/*` | CRUD services + nested options + reorder | any read · manager+ write · admin+ delete |
 | `/api/v1/orders/*` | List, status change, stats | viewer+ read · manager+ status change |
 | `/api/v1/reviews/*` | CRUD reviews + reorder | any read · manager+ write · admin+ delete |
+| `/api/v1/admin/games/{slug}/faqs` | List + create + reorder per-game FAQs | manager+ |
+| `/api/v1/admin/faqs/{id}` | Patch / delete a FAQ | manager+ patch · admin+ delete |
 | `/api/v1/uploads` | `POST` multipart, served via `/uploads/*` | manager+ |
 | `/api/v1/dashboard/*` | KPIs | viewer+ |
 
@@ -257,6 +260,60 @@ The endpoint is **not rate-limited** server-side at this scale; if abuse
 becomes a problem, the Cloudflare layer ahead of FastAPI is where we'd
 add a per-`order_number` cap. Don't bypass the agreed interval — that's
 a load contract, not a hard ceiling.
+
+---
+
+## 4.2. Per-game FAQ
+
+Each game owns its own FAQ list — no shared/global bucket. The
+storefront renders the section unconditionally; an unknown game_slug
+returns an empty list instead of `404` so the empty state is data-driven.
+
+### Public read
+
+```
+GET /api/v1/public/games/{game_slug}/faqs
+```
+
+Response:
+```ts
+type PublicFAQ = {
+  id: number;
+  question: string;             // 1-500 chars, trimmed
+  answer: string;               // 1-10000 chars, markdown (paragraphs, **bold**, [links](https://…))
+  order_index: number;          // lower sorts first
+};
+
+type PublicFAQListResponse = { faqs: PublicFAQ[] };
+```
+
+- Returns only `is_active = true` rows.
+- Sort: `order_index ASC, id ASC` (id breaks ties deterministically).
+- Unknown slug → `200 {"faqs": []}` (not `404`).
+
+### Admin write
+
+| Method | Path | Min role | Body |
+|---|---|---|---|
+| `GET` | `/api/v1/admin/games/{game_slug}/faqs` | manager+ | — |
+| `POST` | `/api/v1/admin/games/{game_slug}/faqs` | manager+ | `{question, answer, order_index?, is_active?}` |
+| `PATCH` | `/api/v1/admin/faqs/{id}` | manager+ | partial — any subset of `{question, answer, order_index, is_active}` |
+| `DELETE` | `/api/v1/admin/faqs/{id}` | admin+ | — (hard delete) |
+| `POST` | `/api/v1/admin/games/{game_slug}/faqs/reorder` | manager+ | `{"order": [{"id": 1, "order_index": 0}, ...]}` |
+
+Admin `GET` returns inactive rows too so the panel can toggle them
+back on. The full admin shape includes `game_slug`, `is_active`,
+`created_at`, `updated_at` alongside the public fields.
+
+Reorder body lists every FAQ whose order_index should change — the
+endpoint scopes its `UPDATE` to the path's `game_slug`, so passing
+another game's id is a no-op (counted in neither `updated` nor a
+silent renumber). Useful when wiring drag-and-drop on the admin side
+without per-row PATCHes.
+
+**Validation errors (422)** — `question` empty or > 500 chars,
+`answer` empty or > 10000 chars, unknown body field (we use
+`extra="forbid"` to surface typos early).
 
 ---
 
