@@ -62,6 +62,15 @@ async def ecomtrade24_webhook(
             detail="Malformed JSON payload",
         ) from exc
 
+    # DIAGNOSTIC (2026-05-23): provider returning 400 on payload parse —
+    # log keys + raw body once so we can map their field names to ours.
+    # Remove after the field-rename fix lands and a green smoke test runs.
+    logger.warning(
+        "ecomtrade24_webhook_payload_debug keys=%s body=%s",
+        list(payload.keys()) if isinstance(payload, dict) else type(payload).__name__,
+        raw_body.decode("utf-8", errors="replace")[:2000],
+    )
+
     try:
         event = provider.parse_webhook_event(payload)
     except ValueError as exc:
