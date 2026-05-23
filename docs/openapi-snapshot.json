@@ -442,6 +442,193 @@
         "title": "DisplayCurrency",
         "type": "string"
       },
+      "FAQCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "answer": {
+            "maxLength": 10000,
+            "minLength": 1,
+            "title": "Answer",
+            "type": "string"
+          },
+          "is_active": {
+            "default": true,
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "order_index": {
+            "default": 0,
+            "title": "Order Index",
+            "type": "integer"
+          },
+          "question": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Question",
+            "type": "string"
+          }
+        },
+        "required": [
+          "question",
+          "answer"
+        ],
+        "title": "FAQCreate",
+        "type": "object"
+      },
+      "FAQRead": {
+        "description": "Admin-facing \u2014 includes `is_active` and bookkeeping fields.",
+        "properties": {
+          "answer": {
+            "title": "Answer",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "game_slug": {
+            "title": "Game Slug",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "order_index": {
+            "title": "Order Index",
+            "type": "integer"
+          },
+          "question": {
+            "title": "Question",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "game_slug",
+          "question",
+          "answer",
+          "order_index",
+          "is_active",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "FAQRead",
+        "type": "object"
+      },
+      "FAQReorderItem": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "order_index": {
+            "title": "Order Index",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "order_index"
+        ],
+        "title": "FAQReorderItem",
+        "type": "object"
+      },
+      "FAQReorderRequest": {
+        "properties": {
+          "order": {
+            "items": {
+              "$ref": "#/components/schemas/FAQReorderItem"
+            },
+            "minItems": 1,
+            "title": "Order",
+            "type": "array"
+          }
+        },
+        "required": [
+          "order"
+        ],
+        "title": "FAQReorderRequest",
+        "type": "object"
+      },
+      "FAQReorderResponse": {
+        "properties": {
+          "updated": {
+            "title": "Updated",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "updated"
+        ],
+        "title": "FAQReorderResponse",
+        "type": "object"
+      },
+      "FAQUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "answer": {
+            "anyOf": [
+              {
+                "maxLength": 10000,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer"
+          },
+          "is_active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Active"
+          },
+          "order_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order Index"
+          },
+          "question": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Question"
+          }
+        },
+        "title": "FAQUpdate",
+        "type": "object"
+      },
       "GameCreate": {
         "properties": {
           "description": {
@@ -1529,6 +1716,51 @@
         ],
         "title": "PreferredContact",
         "type": "string"
+      },
+      "PublicFAQListResponse": {
+        "properties": {
+          "faqs": {
+            "items": {
+              "$ref": "#/components/schemas/PublicFAQRead"
+            },
+            "title": "Faqs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "faqs"
+        ],
+        "title": "PublicFAQListResponse",
+        "type": "object"
+      },
+      "PublicFAQRead": {
+        "description": "Storefront-facing \u2014 `is_active` is implicit (only true rows ship)\nand we drop timestamps so the bundle stays compact.",
+        "properties": {
+          "answer": {
+            "title": "Answer",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "order_index": {
+            "title": "Order Index",
+            "type": "integer"
+          },
+          "question": {
+            "title": "Question",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "question",
+          "answer",
+          "order_index"
+        ],
+        "title": "PublicFAQRead",
+        "type": "object"
       },
       "PublicGameRead": {
         "properties": {
@@ -3834,6 +4066,265 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/admin/faqs/{faq_id}": {
+      "delete": {
+        "description": "Hard delete \u2014 destructive, gated behind admin role (same posture\nas game soft-delete; FAQs have no audit trail to preserve).",
+        "operationId": "delete_admin_faq_api_v1_admin_faqs__faq_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "faq_id",
+            "required": true,
+            "schema": {
+              "title": "Faq Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Delete Admin Faq",
+        "tags": [
+          "admin-faqs"
+        ]
+      },
+      "patch": {
+        "operationId": "update_admin_faq_api_v1_admin_faqs__faq_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "faq_id",
+            "required": true,
+            "schema": {
+              "title": "Faq Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FAQUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FAQRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Update Admin Faq",
+        "tags": [
+          "admin-faqs"
+        ]
+      }
+    },
+    "/api/v1/admin/games/{game_slug}/faqs": {
+      "get": {
+        "operationId": "list_admin_faqs_api_v1_admin_games__game_slug__faqs_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "game_slug",
+            "required": true,
+            "schema": {
+              "title": "Game Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FAQRead"
+                  },
+                  "title": "Response List Admin Faqs Api V1 Admin Games  Game Slug  Faqs Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "List Admin Faqs",
+        "tags": [
+          "admin-faqs"
+        ]
+      },
+      "post": {
+        "operationId": "create_admin_faq_api_v1_admin_games__game_slug__faqs_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "game_slug",
+            "required": true,
+            "schema": {
+              "title": "Game Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FAQCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FAQRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Create Admin Faq",
+        "tags": [
+          "admin-faqs"
+        ]
+      }
+    },
+    "/api/v1/admin/games/{game_slug}/faqs/reorder": {
+      "post": {
+        "operationId": "reorder_admin_faqs_api_v1_admin_games__game_slug__faqs_reorder_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "game_slug",
+            "required": true,
+            "schema": {
+              "title": "Game Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FAQReorderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FAQReorderResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Reorder Admin Faqs",
+        "tags": [
+          "admin-faqs"
+        ]
+      }
+    },
     "/api/v1/auth/login": {
       "post": {
         "operationId": "login_api_v1_auth_login_post",
@@ -4758,6 +5249,49 @@
         "summary": "Update Game",
         "tags": [
           "games"
+        ]
+      }
+    },
+    "/api/v1/games/{game_slug}/faqs": {
+      "get": {
+        "description": "Unknown game_slug returns `{\"faqs\": []}` (not 404) so the storefront\ncan render the section unconditionally.",
+        "operationId": "list_public_faqs_api_v1_games__game_slug__faqs_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "game_slug",
+            "required": true,
+            "schema": {
+              "title": "Game Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicFAQListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Public Faqs",
+        "tags": [
+          "public"
         ]
       }
     },
