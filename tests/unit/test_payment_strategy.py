@@ -74,3 +74,73 @@ class TestEcomTrade24Signature:
         any_sig = self._sign("anything", body)
         # Defence in depth: secret unset means we don't trust *any* webhook.
         assert provider.verify_webhook_signature(body, any_sig) is False
+
+
+class TestEcomTrade24ParseWebhookEvent:
+    """Fixture sample is the exact JSON the provider sent on 2026-05-23
+    (test webhook from dashboard). Real-payment shape only differs in
+    populated `txid` / non-zero `session_id` / terminal `status`."""
+
+    SAMPLE_TEST_WEBHOOK = {
+        "event": "payment.session",
+        "session_id": 0,
+        "order_id": "TEST-WEBHOOK-7FE876BC42",
+        "status": "test",
+        "amount": "0.00",
+        "currency": "USD",
+        "email": None,
+        "txid": None,
+        "merchant_id": 175,
+        "shop_domain": "nanoboost.io",
+        "sent_at": "2026-05-23T16:43:11+00:00",
+        "provider": "ecomtrade24",
+        "test": True,
+    }
+
+    @pytest.fixture
+    def provider(self):
+        return EcomTrade24Provider()
+
+    def test_test_webhook_parses_without_error(self, provider):
+        event = provider.parse_webhook_event(self.SAMPLE_TEST_WEBHOOK)
+        assert event.event_type == "payment.session"
+        assert event.event_id == "0:test"
+        assert event.order_id == "TEST-WEBHOOK-7FE876BC42"
+        assert event.status == "pending"  # "test" normalises to no-op
+
+    def test_paid_status_normalises_to_paid(self, provider):
+        payload = {**self.SAMPLE_TEST_WEBHOOK, "session_id": 6420, "status": "paid"}
+        event = provider.parse_webhook_event(payload)
+        assert event.event_id == "6420:paid"
+        assert event.status == "paid"
+
+    def test_event_id_idempotent_across_retries(self, provider):
+        """Same session + same status → same event_id so the (provider,
+        event_id) PK dedupes provider retries naturally."""
+        a = provider.parse_webhook_event({**self.SAMPLE_TEST_WEBHOOK, "session_id": 6420, "status": "paid"})
+        b = provider.parse_webhook_event({**self.SAMPLE_TEST_WEBHOOK, "session_id": 6420, "status": "paid"})
+        assert a.event_id == b.event_id
+
+    def test_status_transition_yields_different_event_id(self, provider):
+        """pending → paid is a real transition, not a retry — must produce
+        distinct event_ids so both rows land in the audit table."""
+        pending = provider.parse_webhook_event({**self.SAMPLE_TEST_WEBHOOK, "session_id": 6420, "status": "pending"})
+        paid = provider.parse_webhook_event({**self.SAMPLE_TEST_WEBHOOK, "session_id": 6420, "status": "paid"})
+        assert pending.event_id != paid.event_id
+
+    def test_declined_normalises_to_failed(self, provider):
+        payload = {**self.SAMPLE_TEST_WEBHOOK, "session_id": 6421, "status": "declined"}
+        event = provider.parse_webhook_event(payload)
+        assert event.status == "failed"
+
+    def test_missing_event_key_raises(self, provider):
+        with pytest.raises(ValueError, match="missing event/session_id"):
+            provider.parse_webhook_event({"session_id": 1, "status": "paid"})
+
+    def test_missing_session_id_raises(self, provider):
+        with pytest.raises(ValueError, match="missing event/session_id"):
+            provider.parse_webhook_event({"event": "payment.session", "status": "paid"})
+
+    def test_raw_payload_preserved_for_audit(self, provider):
+        event = provider.parse_webhook_event(self.SAMPLE_TEST_WEBHOOK)
+        assert event.raw_payload is self.SAMPLE_TEST_WEBHOOK
