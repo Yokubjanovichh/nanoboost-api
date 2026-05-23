@@ -5252,49 +5252,6 @@
         ]
       }
     },
-    "/api/v1/games/{game_slug}/faqs": {
-      "get": {
-        "description": "Unknown game_slug returns `{\"faqs\": []}` (not 404) so the storefront\ncan render the section unconditionally.",
-        "operationId": "list_public_faqs_api_v1_games__game_slug__faqs_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "game_slug",
-            "required": true,
-            "schema": {
-              "title": "Game Slug",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PublicFAQListResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "List Public Faqs",
-        "tags": [
-          "public"
-        ]
-      }
-    },
     "/api/v1/orders": {
       "get": {
         "operationId": "list_orders_api_v1_orders_get",
@@ -5722,6 +5679,49 @@
           }
         },
         "summary": "List Public Games",
+        "tags": [
+          "public"
+        ]
+      }
+    },
+    "/api/v1/public/games/{game_slug}/faqs": {
+      "get": {
+        "description": "Unknown game_slug returns `{\"faqs\": []}` (not 404) so the storefront\ncan render the section unconditionally.",
+        "operationId": "list_public_faqs_api_v1_public_games__game_slug__faqs_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "game_slug",
+            "required": true,
+            "schema": {
+              "title": "Game Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicFAQListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Public Faqs",
         "tags": [
           "public"
         ]

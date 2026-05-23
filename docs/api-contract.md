@@ -58,7 +58,7 @@ the order-status flow trusts `order_number` as the sole credential
 | `GET` | `/api/v1/public/orders/{order_number}/status` | — | `order_number` is the credential | — |
 | `POST` | `/api/v1/public/orders/{order_number}/claim-payment` | — | `order_number` is the credential | — |
 | `POST` | `/api/v1/public/contact` | — | none (rate-limited: 5/min/IP) | — |
-| `GET`  | `/api/v1/games/{game_slug}/faqs` | — | none | — |
+| `GET`  | `/api/v1/public/games/{game_slug}/faqs` | — | none | — |
 | `POST` | `/api/v1/payments/webhooks/ecomtrade24` | — | `X-EcomTrade24-Signature` (HMAC-SHA256) | — |
 
 ### Query-param constraints
@@ -272,7 +272,7 @@ returns an empty list instead of `404` so the empty state is data-driven.
 ### Public read
 
 ```
-GET /api/v1/games/{game_slug}/faqs
+GET /api/v1/public/games/{game_slug}/faqs
 ```
 
 Response:

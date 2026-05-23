@@ -21,11 +21,11 @@ AdminAccess = Annotated[User, Depends(require_admin_or_above)]
 
 
 # --- Public router --------------------------------------------------------
-# Mounted under /api/v1 (no /public prefix on the FAQ path itself — the
-# storefront calls `/api/v1/games/{slug}/faqs` directly, mirroring how
-# the public services list is reached.)
+# Lives under /api/v1/public/* alongside the other storefront reads
+# (/public/games, /public/services/{slug}, /public/reviews) so the FE
+# can apply a single auth/CORS rule to that whole surface.
 
-public_router = APIRouter(prefix="/games", tags=["public"])
+public_router = APIRouter(prefix="/public/games", tags=["public"])
 
 
 @public_router.get("/{game_slug}/faqs", response_model=PublicFAQListResponse)

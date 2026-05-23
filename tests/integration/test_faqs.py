@@ -46,7 +46,7 @@ async def test_public_list_returns_active_only_in_order(client_with_db, db_sessi
     await _seed_faq(db_session, game_slug="gta5", question="Q2", order_index=0)
     await _seed_faq(db_session, game_slug="gta5", question="Hidden", order_index=1, is_active=False)
 
-    res = await client_with_db.get("/api/v1/games/gta5/faqs")
+    res = await client_with_db.get("/api/v1/public/games/gta5/faqs")
     assert res.status_code == 200
     body = res.json()
     assert [f["question"] for f in body["faqs"]] == ["Q2", "Q1"]
@@ -56,7 +56,7 @@ async def test_public_list_returns_active_only_in_order(client_with_db, db_sessi
 
 @pytest.mark.asyncio
 async def test_public_list_unknown_slug_returns_empty_not_404(client_with_db):
-    res = await client_with_db.get("/api/v1/games/no-such-game/faqs")
+    res = await client_with_db.get("/api/v1/public/games/no-such-game/faqs")
     assert res.status_code == 200
     assert res.json() == {"faqs": []}
 
@@ -66,7 +66,7 @@ async def test_public_list_isolates_other_games(client_with_db, db_session):
     await _seed_faq(db_session, game_slug="gta5", question="GTA-only")
     await _seed_faq(db_session, game_slug="fh6", question="FH6-only")
 
-    res = await client_with_db.get("/api/v1/games/gta5/faqs")
+    res = await client_with_db.get("/api/v1/public/games/gta5/faqs")
     assert res.status_code == 200
     questions = [f["question"] for f in res.json()["faqs"]]
     assert "GTA-only" in questions
@@ -183,7 +183,7 @@ async def test_admin_delete_as_admin(client_with_db, admin_user, db_session, aut
     assert res.status_code == 204
 
     # Public list no longer surfaces it.
-    public = await client_with_db.get("/api/v1/games/gta5/faqs")
+    public = await client_with_db.get("/api/v1/public/games/gta5/faqs")
     assert public.json()["faqs"] == []
 
 
@@ -217,7 +217,7 @@ async def test_admin_reorder_swaps_order_indices(
     assert res.status_code == 200
     assert res.json()["updated"] == 2
 
-    public = await client_with_db.get("/api/v1/games/gta5/faqs")
+    public = await client_with_db.get("/api/v1/public/games/gta5/faqs")
     questions = [f["question"] for f in public.json()["faqs"]]
     assert questions == ["B", "A"]
 
