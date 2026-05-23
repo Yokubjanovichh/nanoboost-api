@@ -162,20 +162,29 @@ class EcomTrade24Provider(PaymentProvider):
         return hmac.compare_digest(expected, signature.strip().lower())
 
     def parse_webhook_event(self, payload: dict) -> WebhookEvent:
+        # EcomTrade24 wire field mapping (captured from a live test webhook
+        # on 2026-05-23 — sample stored in tests/unit/test_payment_strategy.py):
+        #   our event_type ← payload["event"]      (e.g. "payment.session")
+        #   our event_id   ← f"{session_id}:{status}" — same state transition
+        #                    produces the same id, so provider retries dedupe
+        #                    naturally against the (provider, event_id) PK.
+        #   our order ref  ← payload["order_id"]   (our NB-... echoed back)
+        #   our status     ← payload["status"]     (paid/failed/test/expired/…)
         try:
-            event_id = str(payload["event_id"])
-            event_type = str(payload["event_type"])
+            event_type = str(payload["event"])
+            session_id = payload["session_id"]
         except (KeyError, TypeError) as exc:
-            raise ValueError("EcomTrade24 webhook payload missing event_id/event_type") from exc
-
-        # Provider echoes our `order_number` back as `external_reference`.
-        order_ref = payload.get("external_reference") or payload.get("order_id")
+            raise ValueError("EcomTrade24 webhook payload missing event/session_id") from exc
 
         status_raw = str(payload.get("status", "")).lower()
+        event_id = f"{session_id}:{status_raw}"
+
+        order_ref = payload.get("order_id")
+
         # Normalised values we care about downstream:
         #   "paid"    — successful capture
         #   "failed"  — declined / expired / cancelled
-        #   "pending" — anything else (no-op for now)
+        #   "pending" — anything else (no-op for now; includes "test")
         if status_raw in {"paid", "succeeded", "success", "completed"}:
             status = "paid"
         elif status_raw in {"failed", "declined", "cancelled", "expired"}:
