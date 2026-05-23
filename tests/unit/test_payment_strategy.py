@@ -117,15 +117,18 @@ class TestEcomTrade24ParseWebhookEvent:
     def test_event_id_idempotent_across_retries(self, provider):
         """Same session + same status → same event_id so the (provider,
         event_id) PK dedupes provider retries naturally."""
-        a = provider.parse_webhook_event({**self.SAMPLE_TEST_WEBHOOK, "session_id": 6420, "status": "paid"})
-        b = provider.parse_webhook_event({**self.SAMPLE_TEST_WEBHOOK, "session_id": 6420, "status": "paid"})
+        retry_payload = {**self.SAMPLE_TEST_WEBHOOK, "session_id": 6420, "status": "paid"}
+        a = provider.parse_webhook_event(retry_payload)
+        b = provider.parse_webhook_event(retry_payload)
         assert a.event_id == b.event_id
 
     def test_status_transition_yields_different_event_id(self, provider):
         """pending → paid is a real transition, not a retry — must produce
         distinct event_ids so both rows land in the audit table."""
-        pending = provider.parse_webhook_event({**self.SAMPLE_TEST_WEBHOOK, "session_id": 6420, "status": "pending"})
-        paid = provider.parse_webhook_event({**self.SAMPLE_TEST_WEBHOOK, "session_id": 6420, "status": "paid"})
+        pending_payload = {**self.SAMPLE_TEST_WEBHOOK, "session_id": 6420, "status": "pending"}
+        paid_payload = {**self.SAMPLE_TEST_WEBHOOK, "session_id": 6420, "status": "paid"}
+        pending = provider.parse_webhook_event(pending_payload)
+        paid = provider.parse_webhook_event(paid_payload)
         assert pending.event_id != paid.event_id
 
     def test_declined_normalises_to_failed(self, provider):
