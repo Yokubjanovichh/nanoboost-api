@@ -174,9 +174,7 @@ class EcomTrade24Provider(PaymentProvider):
             event_type = str(payload["event"])
             session_id = payload["session_id"]
         except (KeyError, TypeError) as exc:
-            raise ValueError(
-                "EcomTrade24 webhook payload missing event/session_id"
-            ) from exc
+            raise ValueError("EcomTrade24 webhook payload missing event/session_id") from exc
 
         status_raw = str(payload.get("status", "")).lower()
         event_id = f"{session_id}:{status_raw}"
