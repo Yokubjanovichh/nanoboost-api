@@ -7,14 +7,68 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    computed_field,
     field_serializer,
     field_validator,
+    model_validator,
 )
 
 from app.core.constants import Platform
 
 SLUG_PATTERN = r"^[a-z0-9]+(-[a-z0-9]+)*$"
 PriceField = Annotated[Decimal, Field(ge=0, max_digits=10, decimal_places=2)]
+
+
+def calculate_discounted_price(option: object, currency: str) -> Decimal:
+    """Apply the option's discount to the price in the requested currency.
+
+    Accepts any object exposing the discount and price attributes — ORM
+    rows, Pydantic schemas, dataclasses — so the same helper services
+    response serialization, order item pricing and admin previews.
+
+    Rules:
+      - No discount fields set    → original price (rounded to cents).
+      - discount_percent          → price * (100 - percent) / 100.
+      - discount_amount_<currency> → max(price - amount, 0).
+    Percent wins if both somehow co-exist on a row (defensive — the
+    schema layer rejects that combination, but DB rows are liberal).
+    """
+    currency = currency.upper()
+    if currency not in {"USD", "EUR"}:
+        raise ValueError(f"Unsupported currency: {currency!r}")
+
+    base = option.price_usd if currency == "USD" else option.price_eur
+    base = Decimal(base) if not isinstance(base, Decimal) else base
+
+    percent = getattr(option, "discount_percent", None)
+    if percent:
+        factor = (Decimal(100) - Decimal(percent)) / Decimal(100)
+        return (base * factor).quantize(Decimal("0.01"))
+
+    amount_attr = "discount_amount_usd" if currency == "USD" else "discount_amount_eur"
+    amount = getattr(option, amount_attr, None)
+    if amount:
+        amount = Decimal(amount) if not isinstance(amount, Decimal) else amount
+        return max(base - amount, Decimal("0")).quantize(Decimal("0.01"))
+
+    return base.quantize(Decimal("0.01"))
+
+
+def _validate_discount_combination(
+    percent: int | None,
+    amount_usd: Decimal | None,
+    amount_eur: Decimal | None,
+) -> None:
+    if percent is not None and (amount_usd is not None or amount_eur is not None):
+        raise ValueError("discount_percent and discount_amount_* are mutually exclusive")
+    if (amount_usd is None) != (amount_eur is None):
+        raise ValueError("discount_amount_usd and discount_amount_eur must be provided together")
+    if percent is not None and not (1 <= percent <= 100):
+        raise ValueError("discount_percent must be between 1 and 100")
+    if amount_usd is not None and amount_usd <= 0:
+        raise ValueError("discount_amount_usd must be greater than 0")
+    if amount_eur is not None and amount_eur <= 0:
+        raise ValueError("discount_amount_eur must be greater than 0")
 
 
 class WhatYouGetItem(BaseModel):
@@ -34,10 +88,24 @@ class ServiceOptionBase(BaseModel):
     price_eur: PriceField
     is_default: bool = False
     sort_order: int = Field(default=0, ge=0)
+    discount_percent: int | None = Field(default=None)
+    discount_amount_usd: Decimal | None = Field(default=None, max_digits=10, decimal_places=2)
+    discount_amount_eur: Decimal | None = Field(default=None, max_digits=10, decimal_places=2)
 
     @field_serializer("price_usd", "price_eur")
     def _serialize_price(self, value: Decimal) -> float:
         return float(value)
+
+    @field_serializer("discount_amount_usd", "discount_amount_eur")
+    def _serialize_discount_amount(self, value: Decimal | None) -> float | None:
+        return None if value is None else float(value)
+
+    @model_validator(mode="after")
+    def _validate_discount(self) -> "ServiceOptionBase":
+        _validate_discount_combination(
+            self.discount_percent, self.discount_amount_usd, self.discount_amount_eur
+        )
+        return self
 
 
 class ServiceOptionCreate(ServiceOptionBase):
@@ -50,6 +118,25 @@ class ServiceOptionUpdate(BaseModel):
     price_eur: Decimal | None = Field(default=None, ge=0, max_digits=10, decimal_places=2)
     is_default: bool | None = None
     sort_order: int | None = Field(default=None, ge=0)
+    discount_percent: int | None = Field(default=None)
+    discount_amount_usd: Decimal | None = Field(default=None, max_digits=10, decimal_places=2)
+    discount_amount_eur: Decimal | None = Field(default=None, max_digits=10, decimal_places=2)
+
+    @model_validator(mode="after")
+    def _validate_discount_payload(self) -> "ServiceOptionUpdate":
+        # Only validate combinations that are actually present in the
+        # payload; PATCH "absent" fields stay unchanged on the DB row.
+        sent = self.model_fields_set
+        if not (
+            "discount_percent" in sent
+            or "discount_amount_usd" in sent
+            or "discount_amount_eur" in sent
+        ):
+            return self
+        _validate_discount_combination(
+            self.discount_percent, self.discount_amount_usd, self.discount_amount_eur
+        )
+        return self
 
 
 class ServiceOptionRead(ServiceOptionBase):
@@ -59,6 +146,16 @@ class ServiceOptionRead(ServiceOptionBase):
     service_id: UUID
     created_at: datetime
     updated_at: datetime
+
+    @computed_field
+    @property
+    def discounted_price_usd(self) -> float:
+        return float(calculate_discounted_price(self, "USD"))
+
+    @computed_field
+    @property
+    def discounted_price_eur(self) -> float:
+        return float(calculate_discounted_price(self, "EUR"))
 
 
 class GameSummary(BaseModel):
@@ -154,10 +251,27 @@ class PublicServiceOptionRead(BaseModel):
     price_eur: Decimal
     is_default: bool
     sort_order: int
+    discount_percent: int | None = None
+    discount_amount_usd: Decimal | None = None
+    discount_amount_eur: Decimal | None = None
 
     @field_serializer("price_usd", "price_eur")
     def _serialize_price(self, value: Decimal) -> float:
         return float(value)
+
+    @field_serializer("discount_amount_usd", "discount_amount_eur")
+    def _serialize_discount_amount(self, value: Decimal | None) -> float | None:
+        return None if value is None else float(value)
+
+    @computed_field
+    @property
+    def discounted_price_usd(self) -> float:
+        return float(calculate_discounted_price(self, "USD"))
+
+    @computed_field
+    @property
+    def discounted_price_eur(self) -> float:
+        return float(calculate_discounted_price(self, "EUR"))
 
 
 class PublicServiceRead(BaseModel):

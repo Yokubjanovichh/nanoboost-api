@@ -14,6 +14,7 @@ from app.features.orders.models import Order, OrderItem
 from app.features.orders.public_schemas import PublicOrderCreate, PublicOrderItemCreate
 from app.features.orders.repository import OrderRepository
 from app.features.services.repository import ServiceOptionRepository, ServiceRepository
+from app.features.services.schemas import calculate_discounted_price
 from app.shared.notifications import OrderNotifier, get_order_notifier
 
 USDT_DISCOUNT_PERCENT = 5
@@ -58,6 +59,26 @@ class PublicOrderService:
             "image_url": service.image_desktop_url,
             "platform": service.platform.value,
             "game_slug": game.slug if game else None,
+            # Option-level audit trail. The discounted prices are also
+            # stored on OrderItem.unit_price_* (so reports don't need to
+            # re-derive them); these fields exist for audit after a price
+            # or discount change on the live ServiceOption row.
+            "option": {
+                "label": option.label,
+                "original_price_usd": str(option.price_usd),
+                "original_price_eur": str(option.price_eur),
+                "discount_percent": option.discount_percent,
+                "discount_amount_usd": (
+                    str(option.discount_amount_usd)
+                    if option.discount_amount_usd is not None
+                    else None
+                ),
+                "discount_amount_eur": (
+                    str(option.discount_amount_eur)
+                    if option.discount_amount_eur is not None
+                    else None
+                ),
+            },
         }
         return service, option, snapshot
 
@@ -83,8 +104,13 @@ class PublicOrderService:
         for item in payload.items:
             service, option, snapshot = await self._resolve_item(item)
             qty = Decimal(item.qty)
-            line_total_usd = (option.price_usd * qty).quantize(Decimal("0.01"))
-            line_total_eur = (option.price_eur * qty).quantize(Decimal("0.01"))
+            # Item-level discount is applied here so the order subtotal
+            # already reflects per-option discounts. The order-level USDT
+            # 5% (if any) then stacks naturally on the discounted subtotal.
+            unit_usd = calculate_discounted_price(option, "USD")
+            unit_eur = calculate_discounted_price(option, "EUR")
+            line_total_usd = (unit_usd * qty).quantize(Decimal("0.01"))
+            line_total_eur = (unit_eur * qty).quantize(Decimal("0.01"))
             subtotal_usd += line_total_usd
             subtotal_eur += line_total_eur
 
@@ -95,8 +121,8 @@ class PublicOrderService:
                     service_snapshot=snapshot,
                     option_label=option.label,
                     quantity=item.qty,
-                    unit_price_usd=option.price_usd,
-                    unit_price_eur=option.price_eur,
+                    unit_price_usd=unit_usd,
+                    unit_price_eur=unit_eur,
                     total_price_usd=line_total_usd,
                     total_price_eur=line_total_eur,
                 )

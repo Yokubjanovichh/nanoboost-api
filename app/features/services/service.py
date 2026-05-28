@@ -5,7 +5,7 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.constants import Platform
-from app.core.exceptions import ConflictError, NotFoundError
+from app.core.exceptions import ConflictError, NotFoundError, ValidationFailureError
 from app.features.games.repository import GameRepository
 from app.features.services.models import Service, ServiceOption
 from app.features.services.repository import ServiceOptionRepository, ServiceRepository
@@ -15,6 +15,7 @@ from app.features.services.schemas import (
     ServiceOptionCreate,
     ServiceOptionUpdate,
     ServiceUpdate,
+    _validate_discount_combination,
 )
 from app.shared.cache import invalidate_public_cache
 
@@ -231,6 +232,9 @@ class ServiceOptionService:
             price_eur=payload.price_eur,
             is_default=payload.is_default,
             sort_order=payload.sort_order,
+            discount_percent=payload.discount_percent,
+            discount_amount_usd=payload.discount_amount_usd,
+            discount_amount_eur=payload.discount_amount_eur,
         )
         await self.repo.add(option)
         await self.db.commit()
@@ -258,6 +262,26 @@ class ServiceOptionService:
             option.is_default = payload.is_default
         if payload.sort_order is not None:
             option.sort_order = payload.sort_order
+
+        # Discount fields apply by presence (model_fields_set) — not by
+        # truthiness — so callers can explicitly null an existing discount.
+        sent = payload.model_fields_set
+        if "discount_percent" in sent:
+            option.discount_percent = payload.discount_percent
+        if "discount_amount_usd" in sent:
+            option.discount_amount_usd = payload.discount_amount_usd
+        if "discount_amount_eur" in sent:
+            option.discount_amount_eur = payload.discount_amount_eur
+        # Re-validate the merged state — the payload validator only sees
+        # what arrived, not the combination after merging with the row.
+        try:
+            _validate_discount_combination(
+                option.discount_percent,
+                option.discount_amount_usd,
+                option.discount_amount_eur,
+            )
+        except ValueError as exc:
+            raise ValidationFailureError(str(exc)) from exc
 
         await self.db.commit()
         await self.db.refresh(option)

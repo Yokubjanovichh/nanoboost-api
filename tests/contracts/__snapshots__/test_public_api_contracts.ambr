@@ -59,6 +59,11 @@
     'is_featured': 'bool',
     'options': list([
       dict({
+        'discount_amount_eur': 'None',
+        'discount_amount_usd': 'None',
+        'discount_percent': 'None',
+        'discounted_price_eur': 'float',
+        'discounted_price_usd': 'float',
         'id': 'str',
         'is_default': 'bool',
         'label': 'str',
@@ -108,6 +113,11 @@
       'is_featured': 'bool',
       'options': list([
         dict({
+          'discount_amount_eur': 'None',
+          'discount_amount_usd': 'None',
+          'discount_percent': 'None',
+          'discounted_price_eur': 'float',
+          'discounted_price_usd': 'float',
           'id': 'str',
           'is_default': 'bool',
           'label': 'str',
@@ -158,6 +168,11 @@
       'is_featured': 'bool',
       'options': list([
         dict({
+          'discount_amount_eur': 'None',
+          'discount_amount_usd': 'None',
+          'discount_percent': 'None',
+          'discounted_price_eur': 'float',
+          'discounted_price_usd': 'float',
           'id': 'str',
           'is_default': 'bool',
           'label': 'str',
@@ -208,6 +223,11 @@
       'is_featured': 'bool',
       'options': list([
         dict({
+          'discount_amount_eur': 'None',
+          'discount_amount_usd': 'None',
+          'discount_percent': 'None',
+          'discounted_price_eur': 'float',
+          'discounted_price_usd': 'float',
           'id': 'str',
           'is_default': 'bool',
           'label': 'str',
@@ -258,6 +278,11 @@
       'is_featured': 'bool',
       'options': list([
         dict({
+          'discount_amount_eur': 'None',
+          'discount_amount_usd': 'None',
+          'discount_percent': 'None',
+          'discounted_price_eur': 'float',
+          'discounted_price_usd': 'float',
           'id': 'str',
           'is_default': 'bool',
           'label': 'str',

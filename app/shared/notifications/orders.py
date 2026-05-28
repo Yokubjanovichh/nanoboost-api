@@ -16,15 +16,15 @@ if TYPE_CHECKING:
 logger = logging.getLogger("nanoboost.notifications.orders")
 
 STATUS_LABEL_RU: dict[OrderStatus, str] = {
-    OrderStatus.PENDING: "В ожидании",
+    OrderStatus.PENDING: "Ожидает оплату",
     OrderStatus.PAID: "Оплачен",
-    OrderStatus.IN_PROGRESS: "В работе",
-    OrderStatus.COMPLETED: "Завершён",
-    OrderStatus.CANCELLED: "Отменён",
-    OrderStatus.REFUNDED: "Возврат",
     OrderStatus.AWAITING_BOOSTER: "Ожидает бустера",
+    OrderStatus.IN_PROGRESS: "В работе",
     OrderStatus.BOOSTER_COMPLETED: "Выполнен бустером",
     OrderStatus.DELIVERED_TO_CLIENT: "Выдан клиенту",
+    OrderStatus.COMPLETED: "Завершен",
+    OrderStatus.CANCELLED: "Отменен",
+    OrderStatus.REFUNDED: "Возврат провайдером",
 }
 
 PAYMENT_LABEL: dict[PaymentMethod, str] = {
