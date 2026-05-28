@@ -312,3 +312,83 @@ async def test_cancel_stale_pending_idempotent(db_session):
     second = await OrderService(db_session).cancel_stale_pending(hours=24)
     assert first == 1
     assert second == 0
+
+
+# --- Extended fulfilment pipeline (migration 0014) -------------------------
+
+
+async def _seed_paid_order(db_session, order_number: str) -> Order:
+    client = Client(email=f"{order_number}@test.io")
+    db_session.add(client)
+    await db_session.flush()
+    order = Order(
+        order_number=order_number,
+        client_id=client.id,
+        status=OrderStatus.PAID,
+        payment_method=PaymentMethod.CARD_ECOMTRADE24,
+        display_currency=DisplayCurrency.USD,
+        subtotal_usd=Decimal("10"),
+        final_total_usd=Decimal("10"),
+        final_total_eur=Decimal("9"),
+        paid_at=datetime.now(UTC),
+    )
+    db_session.add(order)
+    await db_session.commit()
+    await db_session.refresh(order)
+    return order
+
+
+@pytest.mark.asyncio
+async def test_change_status_paid_to_awaiting_booster_sets_timestamp(db_session):
+    from app.features.orders.schemas import OrderStatusUpdate
+
+    order = await _seed_paid_order(db_session, "NB-PIPE-1")
+    assert order.awaiting_booster_at is None
+
+    service = OrderService(db_session)
+    updated = await service.change_status(
+        order.id, OrderStatusUpdate(status=OrderStatus.AWAITING_BOOSTER)
+    )
+
+    assert updated.status == OrderStatus.AWAITING_BOOSTER
+    assert updated.awaiting_booster_at is not None
+
+
+@pytest.mark.asyncio
+async def test_change_status_full_fulfilment_pipeline(db_session):
+    """paid → awaiting_booster → in_progress → booster_completed
+    → delivered_to_client → completed. Each new stage stamps its own
+    timestamp; in_progress is intentionally silent (no column)."""
+    from app.features.orders.schemas import OrderStatusUpdate
+
+    order = await _seed_paid_order(db_session, "NB-PIPE-2")
+    svc = OrderService(db_session)
+
+    pipeline = [
+        (OrderStatus.AWAITING_BOOSTER, "awaiting_booster_at"),
+        (OrderStatus.IN_PROGRESS, None),  # no timestamp column by design
+        (OrderStatus.BOOSTER_COMPLETED, "booster_completed_at"),
+        (OrderStatus.DELIVERED_TO_CLIENT, "delivered_to_client_at"),
+        (OrderStatus.COMPLETED, "completed_at"),
+    ]
+
+    for target, ts_field in pipeline:
+        updated = await svc.change_status(order.id, OrderStatusUpdate(status=target))
+        assert updated.status == target
+        if ts_field is not None:
+            assert getattr(updated, ts_field) is not None, (
+                f"{ts_field} should be set on transition to {target.value}"
+            )
+
+
+@pytest.mark.asyncio
+async def test_change_status_skip_stage_rejected(db_session):
+    """Cannot skip from PAID directly to IN_PROGRESS — must traverse
+    AWAITING_BOOSTER first. Guards the new pipeline order."""
+    from app.core.exceptions import InvalidStatusTransitionError
+    from app.features.orders.schemas import OrderStatusUpdate
+
+    order = await _seed_paid_order(db_session, "NB-PIPE-3")
+    svc = OrderService(db_session)
+    with pytest.raises(InvalidStatusTransitionError):
+        await svc.change_status(order.id, OrderStatusUpdate(status=OrderStatus.IN_PROGRESS))

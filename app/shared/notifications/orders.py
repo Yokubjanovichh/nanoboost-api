@@ -22,6 +22,9 @@ STATUS_LABEL_RU: dict[OrderStatus, str] = {
     OrderStatus.COMPLETED: "Завершён",
     OrderStatus.CANCELLED: "Отменён",
     OrderStatus.REFUNDED: "Возврат",
+    OrderStatus.AWAITING_BOOSTER: "Ожидает бустера",
+    OrderStatus.BOOSTER_COMPLETED: "Выполнен бустером",
+    OrderStatus.DELIVERED_TO_CLIENT: "Выдан клиенту",
 }
 
 PAYMENT_LABEL: dict[PaymentMethod, str] = {

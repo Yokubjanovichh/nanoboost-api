@@ -17,11 +17,25 @@ class TestTransitions:
     @pytest.mark.parametrize(
         "current,target",
         [
+            # Pre-fulfilment
             (OrderStatus.PENDING, OrderStatus.PAID),
             (OrderStatus.PENDING, OrderStatus.CANCELLED),
-            (OrderStatus.PAID, OrderStatus.IN_PROGRESS),
+            # Fulfilment pipeline (paid → awaiting_booster → in_progress
+            # → booster_completed → delivered_to_client → completed)
+            (OrderStatus.PAID, OrderStatus.AWAITING_BOOSTER),
+            (OrderStatus.PAID, OrderStatus.CANCELLED),
             (OrderStatus.PAID, OrderStatus.REFUNDED),
-            (OrderStatus.IN_PROGRESS, OrderStatus.COMPLETED),
+            (OrderStatus.AWAITING_BOOSTER, OrderStatus.IN_PROGRESS),
+            (OrderStatus.AWAITING_BOOSTER, OrderStatus.CANCELLED),
+            (OrderStatus.AWAITING_BOOSTER, OrderStatus.REFUNDED),
+            (OrderStatus.IN_PROGRESS, OrderStatus.BOOSTER_COMPLETED),
+            (OrderStatus.IN_PROGRESS, OrderStatus.CANCELLED),
+            (OrderStatus.IN_PROGRESS, OrderStatus.REFUNDED),
+            (OrderStatus.BOOSTER_COMPLETED, OrderStatus.DELIVERED_TO_CLIENT),
+            (OrderStatus.BOOSTER_COMPLETED, OrderStatus.CANCELLED),
+            (OrderStatus.BOOSTER_COMPLETED, OrderStatus.REFUNDED),
+            (OrderStatus.DELIVERED_TO_CLIENT, OrderStatus.COMPLETED),
+            (OrderStatus.DELIVERED_TO_CLIENT, OrderStatus.REFUNDED),
             (OrderStatus.COMPLETED, OrderStatus.REFUNDED),
         ],
     )
@@ -32,17 +46,44 @@ class TestTransitions:
     @pytest.mark.parametrize(
         "current,target",
         [
-            (OrderStatus.PENDING, OrderStatus.IN_PROGRESS),  # skip PAID
-            (OrderStatus.PENDING, OrderStatus.COMPLETED),  # skip everything
-            (OrderStatus.CANCELLED, OrderStatus.PAID),  # terminal -> any
-            (OrderStatus.REFUNDED, OrderStatus.PENDING),  # terminal -> any
-            (OrderStatus.COMPLETED, OrderStatus.PENDING),  # rewind
+            # Cannot skip a stage in the pipeline
+            (OrderStatus.PENDING, OrderStatus.IN_PROGRESS),
+            (OrderStatus.PENDING, OrderStatus.COMPLETED),
+            (OrderStatus.PENDING, OrderStatus.AWAITING_BOOSTER),
+            (OrderStatus.PENDING, OrderStatus.BOOSTER_COMPLETED),
+            (OrderStatus.PAID, OrderStatus.IN_PROGRESS),  # must go via AWAITING_BOOSTER
+            (OrderStatus.PAID, OrderStatus.BOOSTER_COMPLETED),
+            (OrderStatus.PAID, OrderStatus.DELIVERED_TO_CLIENT),
+            (OrderStatus.PAID, OrderStatus.COMPLETED),
+            (OrderStatus.AWAITING_BOOSTER, OrderStatus.BOOSTER_COMPLETED),  # skip IN_PROGRESS
+            (OrderStatus.AWAITING_BOOSTER, OrderStatus.COMPLETED),
+            (OrderStatus.IN_PROGRESS, OrderStatus.DELIVERED_TO_CLIENT),  # skip BOOSTER_COMPLETED
+            (OrderStatus.IN_PROGRESS, OrderStatus.COMPLETED),
+            (OrderStatus.BOOSTER_COMPLETED, OrderStatus.COMPLETED),  # skip DELIVERED_TO_CLIENT
+            # Cannot rewind
+            (OrderStatus.AWAITING_BOOSTER, OrderStatus.PAID),
+            (OrderStatus.IN_PROGRESS, OrderStatus.AWAITING_BOOSTER),
+            (OrderStatus.BOOSTER_COMPLETED, OrderStatus.IN_PROGRESS),
+            (OrderStatus.DELIVERED_TO_CLIENT, OrderStatus.BOOSTER_COMPLETED),
+            # Cancel disallowed once delivered to the client.
+            (OrderStatus.DELIVERED_TO_CLIENT, OrderStatus.CANCELLED),
+            (OrderStatus.COMPLETED, OrderStatus.PENDING),
+            (OrderStatus.COMPLETED, OrderStatus.CANCELLED),
+            # Terminal -> anything is rejected
+            (OrderStatus.CANCELLED, OrderStatus.PAID),
+            (OrderStatus.CANCELLED, OrderStatus.REFUNDED),
+            (OrderStatus.REFUNDED, OrderStatus.PENDING),
+            (OrderStatus.REFUNDED, OrderStatus.PAID),
         ],
     )
     def test_rejected(self, current, target):
         with pytest.raises(InvalidStatusTransitionError):
             assert_transition(current, target)
 
-    def test_self_transition_rejected(self):
+    @pytest.mark.parametrize(
+        "status",
+        list(OrderStatus),
+    )
+    def test_self_transition_rejected(self, status):
         with pytest.raises(ValidationFailureError):
-            assert_transition(OrderStatus.PAID, OrderStatus.PAID)
+            assert_transition(status, status)
