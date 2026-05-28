@@ -542,7 +542,8 @@ async def test_public_order_snapshot_records_discount_audit(client_with_db, db_s
     snap = item.service_snapshot
     assert snap["option"]["original_price_usd"] == "100.00"
     assert snap["option"]["original_price_eur"] == "90.00"
-    assert snap["option"]["discount_percent"] == 20
+    # Decimal serialized as string for JSONB portability.
+    assert snap["option"]["discount_percent"] == "20.000"
     assert snap["option"]["discount_amount_usd"] is None
 
 

@@ -20,7 +20,7 @@ from app.features.services.schemas import (
 class _Option:
     price_usd: Decimal
     price_eur: Decimal
-    discount_percent: int | None = None
+    discount_percent: Decimal | None = None
     discount_amount_usd: Decimal | None = None
     discount_amount_eur: Decimal | None = None
 
@@ -99,6 +99,40 @@ class TestCalculateDiscountedPrice:
         assert calculate_discounted_price(opt, "usd") == Decimal("90.00")
         assert calculate_discounted_price(opt, "eur") == Decimal("81.00")
 
+    # --- Decimal precision (migration 0016) -------------------------------
+
+    def test_fractional_percent_keeps_three_decimal_precision(self):
+        # 100 * (100 - 50.003) / 100 = 49.997 -> quantize to 50.00
+        # (50.003% chops 50.003 dollars, leaving 49.997 — round-half-even
+        # to two decimal places rounds the 7 up to 50.00).
+        opt = _opt(discount_percent=Decimal("50.003"))
+        assert calculate_discounted_price(opt, "USD") == Decimal("50.00")
+
+    def test_near_100_percent_floors_at_cents(self):
+        # 99.999% off 100 = 100 * 0.00001 = 0.001 -> quantize -> 0.00.
+        opt = _opt(discount_percent=Decimal("99.999"))
+        assert calculate_discounted_price(opt, "USD") == Decimal("0.00")
+
+    def test_tiny_decimal_percent_is_a_no_op_after_quantize(self):
+        # 0.001% off 64.99 = 64.98935065... -> quantize -> 64.99.
+        opt = _opt(
+            price_usd=Decimal("64.99"),
+            price_eur=Decimal("60"),
+            discount_percent=Decimal("0.001"),
+        )
+        assert calculate_discounted_price(opt, "USD") == Decimal("64.99")
+
+    def test_legacy_int_value_matches_decimal_equivalent(self):
+        # Migration 0016 backward-compat: rows holding 10 (legacy int)
+        # must price identically to rows holding Decimal("10.000").
+        int_opt = _opt(price_usd=Decimal("64.99"), discount_percent=10)
+        dec_opt = _opt(price_usd=Decimal("64.99"), discount_percent=Decimal("10.000"))
+        assert calculate_discounted_price(int_opt, "USD") == calculate_discounted_price(
+            dec_opt, "USD"
+        )
+        # Spot value: 64.99 * 0.90 = 58.491 -> quantize -> 58.49.
+        assert calculate_discounted_price(int_opt, "USD") == Decimal("58.49")
+
 
 class TestValidateDiscountCombination:
     def test_all_null_is_allowed(self):
@@ -110,10 +144,40 @@ class TestValidateDiscountCombination:
     def test_amount_pair_allowed(self):
         _validate_discount_combination(None, Decimal("5"), Decimal("4"))
 
-    @pytest.mark.parametrize("p", [0, -1, 101, 200])
+    @pytest.mark.parametrize(
+        "p",
+        [
+            0,
+            Decimal("0"),
+            Decimal("0.000"),
+            -1,
+            Decimal("-0.001"),
+            100,
+            Decimal("100"),
+            Decimal("100.001"),
+            101,
+            200,
+        ],
+    )
     def test_percent_out_of_range_rejected(self, p):
-        with pytest.raises(ValueError, match="between 1 and 100"):
+        # Migration 0016: range is strictly between 0 and 100 (exclusive).
+        with pytest.raises(ValueError, match="strictly between 0 and 100"):
             _validate_discount_combination(p, None, None)
+
+    @pytest.mark.parametrize(
+        "p",
+        [
+            Decimal("0.001"),
+            Decimal("0.5"),
+            Decimal("1"),
+            Decimal("12.5"),
+            Decimal("50.003"),
+            Decimal("99.999"),
+            10,  # legacy int still valid
+        ],
+    )
+    def test_percent_in_range_accepted(self, p):
+        _validate_discount_combination(p, None, None)
 
     def test_percent_and_amount_combination_rejected(self):
         with pytest.raises(ValueError, match="mutually exclusive"):

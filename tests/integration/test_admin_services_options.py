@@ -121,7 +121,10 @@ async def test_create_option_without_discount_returns_originals(
         ),
         ({"discount_amount_usd": 5}, "amount_usd without amount_eur"),
         ({"discount_amount_eur": 5}, "amount_eur without amount_usd"),
-        ({"discount_percent": 0}, "percent below range"),
+        ({"discount_percent": 0}, "percent equal to lower bound"),
+        ({"discount_percent": -0.001}, "percent fractionally negative"),
+        ({"discount_percent": 100}, "percent equal to upper bound"),
+        ({"discount_percent": 100.001}, "percent fractionally above bound"),
         ({"discount_percent": 101}, "percent above range"),
         ({"discount_amount_usd": 0, "discount_amount_eur": 0}, "amount must be >0"),
     ],
@@ -135,6 +138,48 @@ async def test_create_option_rejects_invalid_discount(
         json=_option_payload(**bad_payload),
     )
     assert res.status_code == 422, f"expected 422 for {reason}, got {res.status_code}: {res.text}"
+
+
+@pytest.mark.asyncio
+async def test_create_option_with_fractional_percent(
+    client_with_db, manager_user, auth_headers, service_id
+):
+    """Migration 0016: NUMERIC(7,3) lets sub-percent campaigns through —
+    e.g. 50.003%. Response echoes the exact value and prices through the
+    helper without rounding before quantize."""
+    res = await client_with_db.post(
+        f"/api/v1/services/{service_id}/options",
+        headers=auth_headers(manager_user),
+        json=_option_payload(discount_percent=50.003),
+    )
+    assert res.status_code == 201, res.text
+    body = res.json()
+    assert body["discount_percent"] == 50.003
+    # 100 * (100 - 50.003) / 100 = 49.997 -> quantize -> 50.00 (banker's).
+    assert body["discounted_price_usd"] == 50.0
+
+
+@pytest.mark.asyncio
+async def test_patch_option_to_fractional_percent(
+    client_with_db, manager_user, auth_headers, service_id
+):
+    create = await client_with_db.post(
+        f"/api/v1/services/{service_id}/options",
+        headers=auth_headers(manager_user),
+        json=_option_payload(discount_percent=10),
+    )
+    option_id = create.json()["id"]
+
+    patch = await client_with_db.patch(
+        f"/api/v1/services/{service_id}/options/{option_id}",
+        headers=auth_headers(manager_user),
+        json={"discount_percent": 12.5},
+    )
+    assert patch.status_code == 200, patch.text
+    body = patch.json()
+    assert body["discount_percent"] == 12.5
+    # 100 * (100 - 12.5) / 100 = 87.50
+    assert body["discounted_price_usd"] == 87.5
 
 
 @pytest.mark.asyncio

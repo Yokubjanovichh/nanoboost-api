@@ -102,7 +102,10 @@ class ServiceOption(Base, TimestampMixin):
     # rule. Order-level discounts (e.g. USDT 5%) stack on top of any
     # item-level discount because the order subtotal is computed from the
     # already-discounted unit price.
-    discount_percent: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # NUMERIC(7,3) lets the admin target sub-percent rates (12.5%, 7.499%).
+    # Integers stored as 10 (legacy) read back as Decimal("10.000") — the
+    # downstream Decimal math produces identical totals after quantize.
+    discount_percent: Mapped[Decimal | None] = mapped_column(Numeric(7, 3), nullable=True)
     discount_amount_usd: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
     discount_amount_eur: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
 

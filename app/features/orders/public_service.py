@@ -67,7 +67,12 @@ class PublicOrderService:
                 "label": option.label,
                 "original_price_usd": str(option.price_usd),
                 "original_price_eur": str(option.price_eur),
-                "discount_percent": option.discount_percent,
+                # Decimals are stringified for JSONB portability — the snapshot
+                # is consumed by reports / admin UI which can re-parse to
+                # Decimal if needed. Plain `None` stays plain `None`.
+                "discount_percent": (
+                    str(option.discount_percent) if option.discount_percent is not None else None
+                ),
                 "discount_amount_usd": (
                     str(option.discount_amount_usd)
                     if option.discount_amount_usd is not None

@@ -55,7 +55,7 @@ def calculate_discounted_price(option: object, currency: str) -> Decimal:
 
 
 def _validate_discount_combination(
-    percent: int | None,
+    percent: Decimal | None,
     amount_usd: Decimal | None,
     amount_eur: Decimal | None,
 ) -> None:
@@ -63,8 +63,8 @@ def _validate_discount_combination(
         raise ValueError("discount_percent and discount_amount_* are mutually exclusive")
     if (amount_usd is None) != (amount_eur is None):
         raise ValueError("discount_amount_usd and discount_amount_eur must be provided together")
-    if percent is not None and not (1 <= percent <= 100):
-        raise ValueError("discount_percent must be between 1 and 100")
+    if percent is not None and not (Decimal("0") < Decimal(percent) < Decimal("100")):
+        raise ValueError("discount_percent must be strictly between 0 and 100 (exclusive)")
     if amount_usd is not None and amount_usd <= 0:
         raise ValueError("discount_amount_usd must be greater than 0")
     if amount_eur is not None and amount_eur <= 0:
@@ -88,13 +88,17 @@ class ServiceOptionBase(BaseModel):
     price_eur: PriceField
     is_default: bool = False
     sort_order: int = Field(default=0, ge=0)
-    discount_percent: int | None = Field(default=None)
+    discount_percent: Decimal | None = Field(default=None, max_digits=7, decimal_places=3)
     discount_amount_usd: Decimal | None = Field(default=None, max_digits=10, decimal_places=2)
     discount_amount_eur: Decimal | None = Field(default=None, max_digits=10, decimal_places=2)
 
     @field_serializer("price_usd", "price_eur")
     def _serialize_price(self, value: Decimal) -> float:
         return float(value)
+
+    @field_serializer("discount_percent")
+    def _serialize_discount_percent(self, value: Decimal | None) -> float | None:
+        return None if value is None else float(value)
 
     @field_serializer("discount_amount_usd", "discount_amount_eur")
     def _serialize_discount_amount(self, value: Decimal | None) -> float | None:
@@ -118,7 +122,7 @@ class ServiceOptionUpdate(BaseModel):
     price_eur: Decimal | None = Field(default=None, ge=0, max_digits=10, decimal_places=2)
     is_default: bool | None = None
     sort_order: int | None = Field(default=None, ge=0)
-    discount_percent: int | None = Field(default=None)
+    discount_percent: Decimal | None = Field(default=None, max_digits=7, decimal_places=3)
     discount_amount_usd: Decimal | None = Field(default=None, max_digits=10, decimal_places=2)
     discount_amount_eur: Decimal | None = Field(default=None, max_digits=10, decimal_places=2)
 
@@ -251,13 +255,17 @@ class PublicServiceOptionRead(BaseModel):
     price_eur: Decimal
     is_default: bool
     sort_order: int
-    discount_percent: int | None = None
+    discount_percent: Decimal | None = None
     discount_amount_usd: Decimal | None = None
     discount_amount_eur: Decimal | None = None
 
     @field_serializer("price_usd", "price_eur")
     def _serialize_price(self, value: Decimal) -> float:
         return float(value)
+
+    @field_serializer("discount_percent")
+    def _serialize_discount_percent(self, value: Decimal | None) -> float | None:
+        return None if value is None else float(value)
 
     @field_serializer("discount_amount_usd", "discount_amount_eur")
     def _serialize_discount_amount(self, value: Decimal | None) -> float | None:
