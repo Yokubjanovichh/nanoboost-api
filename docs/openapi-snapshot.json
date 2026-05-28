@@ -2160,7 +2160,7 @@
           "discount_percent": {
             "anyOf": [
               {
-                "type": "integer"
+                "type": "number"
               },
               {
                 "type": "null"
@@ -3155,7 +3155,11 @@
           "discount_percent": {
             "anyOf": [
               {
-                "type": "integer"
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,4}|(?=[\\d.]{1,8}0*$)\\d{0,4}\\.\\d{0,3}0*$)",
+                "type": "string"
               },
               {
                 "type": "null"
@@ -3247,7 +3251,7 @@
           "discount_percent": {
             "anyOf": [
               {
-                "type": "integer"
+                "type": "number"
               },
               {
                 "type": "null"
@@ -3355,7 +3359,11 @@
           "discount_percent": {
             "anyOf": [
               {
-                "type": "integer"
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,4}|(?=[\\d.]{1,8}0*$)\\d{0,4}\\.\\d{0,3}0*$)",
+                "type": "string"
               },
               {
                 "type": "null"
