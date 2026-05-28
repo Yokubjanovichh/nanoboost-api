@@ -1385,7 +1385,10 @@
         "enum": [
           "pending",
           "paid",
+          "awaiting_booster",
           "in_progress",
+          "booster_completed",
+          "delivered_to_client",
           "completed",
           "cancelled",
           "refunded"

@@ -28,7 +28,10 @@ class GameStatus(StrEnum):
 class OrderStatus(StrEnum):
     PENDING = "pending"
     PAID = "paid"
+    AWAITING_BOOSTER = "awaiting_booster"
     IN_PROGRESS = "in_progress"
+    BOOSTER_COMPLETED = "booster_completed"
+    DELIVERED_TO_CLIENT = "delivered_to_client"
     COMPLETED = "completed"
     CANCELLED = "cancelled"
     REFUNDED = "refunded"
@@ -49,11 +52,18 @@ class DisplayCurrency(StrEnum):
 ORDER_STATUS_TRANSITIONS: dict[OrderStatus, frozenset[OrderStatus]] = {
     OrderStatus.PENDING: frozenset({OrderStatus.PAID, OrderStatus.CANCELLED}),
     OrderStatus.PAID: frozenset(
+        {OrderStatus.AWAITING_BOOSTER, OrderStatus.CANCELLED, OrderStatus.REFUNDED}
+    ),
+    OrderStatus.AWAITING_BOOSTER: frozenset(
         {OrderStatus.IN_PROGRESS, OrderStatus.CANCELLED, OrderStatus.REFUNDED}
     ),
     OrderStatus.IN_PROGRESS: frozenset(
-        {OrderStatus.COMPLETED, OrderStatus.CANCELLED, OrderStatus.REFUNDED}
+        {OrderStatus.BOOSTER_COMPLETED, OrderStatus.CANCELLED, OrderStatus.REFUNDED}
     ),
+    OrderStatus.BOOSTER_COMPLETED: frozenset(
+        {OrderStatus.DELIVERED_TO_CLIENT, OrderStatus.CANCELLED, OrderStatus.REFUNDED}
+    ),
+    OrderStatus.DELIVERED_TO_CLIENT: frozenset({OrderStatus.COMPLETED, OrderStatus.REFUNDED}),
     OrderStatus.COMPLETED: frozenset({OrderStatus.REFUNDED}),
     OrderStatus.CANCELLED: frozenset(),
     OrderStatus.REFUNDED: frozenset(),

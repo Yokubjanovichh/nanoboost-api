@@ -43,8 +43,14 @@ def assert_transition(current: OrderStatus, target: OrderStatus) -> None:
 
 
 def _status_timestamp_field(status: OrderStatus) -> str | None:
+    # IN_PROGRESS intentionally absent — model has no in_progress_at column
+    # (existing pre-extension behaviour preserved). Add a follow-up TZ if a
+    # timestamp for that transition is needed.
     return {
         OrderStatus.PAID: "paid_at",
+        OrderStatus.AWAITING_BOOSTER: "awaiting_booster_at",
+        OrderStatus.BOOSTER_COMPLETED: "booster_completed_at",
+        OrderStatus.DELIVERED_TO_CLIENT: "delivered_to_client_at",
         OrderStatus.COMPLETED: "completed_at",
         OrderStatus.CANCELLED: "cancelled_at",
         OrderStatus.REFUNDED: "refunded_at",
