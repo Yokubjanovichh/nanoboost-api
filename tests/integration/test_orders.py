@@ -381,6 +381,171 @@ async def test_change_status_full_fulfilment_pipeline(db_session):
             )
 
 
+async def _seed_service_with_discount(db_session, **option_kwargs):
+    """Create a Game + Service + single ServiceOption row with the given
+    discount fields. Returns the option_id and service_slug."""
+    from app.core.constants import GameStatus, Platform
+    from app.features.games.models import Game
+    from app.features.services.models import Service, ServiceOption
+
+    game = Game(slug="dg", name="Discount Game", sort_order=0, status=GameStatus.ACTIVE)
+    db_session.add(game)
+    await db_session.flush()
+    svc = Service(
+        game_id=game.id,
+        slug="discounted-service",
+        title="Discounted",
+        platform=Platform.PS,
+        description=["x"],
+        what_you_get=[],
+        sections=[],
+        is_active=True,
+        is_deleted=False,
+        sort_order=0,
+    )
+    db_session.add(svc)
+    await db_session.flush()
+    opt = ServiceOption(
+        service_id=svc.id,
+        label="Standard",
+        price_usd=Decimal("100"),
+        price_eur=Decimal("90"),
+        is_default=True,
+        sort_order=0,
+        **option_kwargs,
+    )
+    db_session.add(opt)
+    await db_session.commit()
+    await db_session.refresh(opt)
+    return svc.slug, opt.id
+
+
+async def _fetch_order_and_item(db_session, order_number: str):
+    """Public POST response is intentionally lean — pull the full order
+    row + its single item from the DB for assertions."""
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+
+    from app.features.orders.models import Order
+
+    res = await db_session.execute(
+        select(Order).options(selectinload(Order.items)).where(Order.order_number == order_number)
+    )
+    order = res.scalar_one()
+    return order, order.items[0]
+
+
+@pytest.mark.asyncio
+async def test_public_order_applies_option_percent_discount(client_with_db, db_session):
+    slug, option_id = await _seed_service_with_discount(db_session, discount_percent=20)
+    res = await client_with_db.post(
+        "/api/v1/public/orders",
+        json={
+            "email": "buyer@test.io",
+            "payment_method": "card_ecomtrade24",
+            "items": [{"service_slug": slug, "option_id": str(option_id), "qty": 2}],
+        },
+    )
+    assert res.status_code == 201, res.text
+    # Card path has no order-level discount, so final equals subtotal.
+    # 100 USD * 0.80 = 80 per unit; qty=2 -> 160 subtotal.
+    assert res.json()["final_total_usd"] == 160.0
+
+    order, item = await _fetch_order_and_item(db_session, res.json()["order_number"])
+    assert order.subtotal_usd == Decimal("160.00")
+    assert order.discount_percent == 0
+    assert item.unit_price_usd == Decimal("80.00")
+    assert item.total_price_usd == Decimal("160.00")
+
+
+@pytest.mark.asyncio
+async def test_public_order_applies_option_amount_discount(client_with_db, db_session):
+    slug, option_id = await _seed_service_with_discount(
+        db_session,
+        discount_amount_usd=Decimal("15"),
+        discount_amount_eur=Decimal("12"),
+    )
+    res = await client_with_db.post(
+        "/api/v1/public/orders",
+        json={
+            "email": "buyer@test.io",
+            "payment_method": "card_ecomtrade24",
+            "items": [{"service_slug": slug, "option_id": str(option_id), "qty": 1}],
+        },
+    )
+    assert res.status_code == 201
+
+    _, item = await _fetch_order_and_item(db_session, res.json()["order_number"])
+    assert item.unit_price_usd == Decimal("85.00")
+    assert item.unit_price_eur == Decimal("78.00")
+
+
+@pytest.mark.asyncio
+async def test_public_order_usdt_stacks_on_item_discount(client_with_db, db_session):
+    """Item-level percent first, then order-level USDT 5% on the already
+    discounted subtotal. 100 -> 80 (item 20%) -> 76 (USDT 5% of 80)."""
+    slug, option_id = await _seed_service_with_discount(db_session, discount_percent=20)
+    res = await client_with_db.post(
+        "/api/v1/public/orders",
+        json={
+            "email": "buyer@test.io",
+            "payment_method": "usdt_trc20",
+            "items": [{"service_slug": slug, "option_id": str(option_id), "qty": 1}],
+        },
+    )
+    assert res.status_code == 201, res.text
+    assert res.json()["final_total_usd"] == 76.0  # 80 - 5%
+
+    order, item = await _fetch_order_and_item(db_session, res.json()["order_number"])
+    assert item.unit_price_usd == Decimal("80.00")  # already discounted
+    assert order.subtotal_usd == Decimal("80.00")  # built from discounted units
+    assert order.discount_percent == 5  # USDT order-level
+    assert order.final_total_usd == Decimal("76.00")
+
+
+@pytest.mark.asyncio
+async def test_public_order_no_discount_unchanged(client_with_db, db_session):
+    """Regression guard: an option without discount fields prices the
+    same as it did before migration 0015."""
+    slug, option_id = await _seed_service_with_discount(db_session)
+    res = await client_with_db.post(
+        "/api/v1/public/orders",
+        json={
+            "email": "buyer@test.io",
+            "payment_method": "card_ecomtrade24",
+            "items": [{"service_slug": slug, "option_id": str(option_id), "qty": 1}],
+        },
+    )
+    assert res.status_code == 201
+    _, item = await _fetch_order_and_item(db_session, res.json()["order_number"])
+    assert item.unit_price_usd == Decimal("100.00")
+    assert item.unit_price_eur == Decimal("90.00")
+
+
+@pytest.mark.asyncio
+async def test_public_order_snapshot_records_discount_audit(client_with_db, db_session):
+    """OrderItem.service_snapshot must capture the original price and
+    discount fields at order time so a later price change on the live
+    option can't rewrite history."""
+    slug, option_id = await _seed_service_with_discount(db_session, discount_percent=20)
+    res = await client_with_db.post(
+        "/api/v1/public/orders",
+        json={
+            "email": "buyer@test.io",
+            "payment_method": "card_ecomtrade24",
+            "items": [{"service_slug": slug, "option_id": str(option_id), "qty": 1}],
+        },
+    )
+    assert res.status_code == 201
+
+    _, item = await _fetch_order_and_item(db_session, res.json()["order_number"])
+    snap = item.service_snapshot
+    assert snap["option"]["original_price_usd"] == "100.00"
+    assert snap["option"]["original_price_eur"] == "90.00"
+    assert snap["option"]["discount_percent"] == 20
+    assert snap["option"]["discount_amount_usd"] is None
+
+
 @pytest.mark.asyncio
 async def test_change_status_skip_stage_rejected(db_session):
     """Cannot skip from PAID directly to IN_PROGRESS — must traverse

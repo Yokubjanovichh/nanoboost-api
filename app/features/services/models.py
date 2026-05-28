@@ -94,6 +94,18 @@ class ServiceOption(Base, TimestampMixin):
     is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
+    # Per-option discount. Mutually exclusive: either percent OR a pair of
+    # USD/EUR amounts. NULL on all three = no discount. Invariants are
+    # enforced at the Pydantic schema layer (see ServiceOptionBase /
+    # ServiceOptionUpdate validators) — keeping the DB liberal avoids
+    # making historical rows un-readable when a future tweak relaxes the
+    # rule. Order-level discounts (e.g. USDT 5%) stack on top of any
+    # item-level discount because the order subtotal is computed from the
+    # already-discounted unit price.
+    discount_percent: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    discount_amount_usd: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
+    discount_amount_eur: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
+
     service: Mapped[Service] = relationship("Service", back_populates="options")
 
     def __repr__(self) -> str:
